@@ -60,9 +60,7 @@
   gap: 10px;
   margin-bottom: 0;
   cursor: pointer;
-  transition:
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .project-card:hover,
