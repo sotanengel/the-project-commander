@@ -1,0 +1,14 @@
+repos:
+  - repo: local
+    hooks:
+      - id: biome-check
+        name: biome check (lint + format)
+        entry: pnpm exec biome check --write --no-errors-on-unmatched
+        language: system
+        types_or: [ts, tsx, javascript, json]
+        pass_filenames: true
+      - id: typecheck
+        name: typecheck (tsc --noEmit)
+        entry: pnpm typecheck
+        language: system
+        pass_filenames: false

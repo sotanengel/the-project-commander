@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        TG_AUTH_TOKEN: ${TG_AUTH_TOKEN:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - tpc-data:/data
+    restart: unless-stopped
+
+volumes:
+  tpc-data:
