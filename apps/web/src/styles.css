@@ -184,3 +184,43 @@ th {
   background: #fee2e2;
   color: var(--color-critical);
 }
+
+/* ガントチャート */
+.gantt-scroll {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+.gantt-chart {
+  font-size: 12px;
+}
+.gantt-day {
+  fill: var(--color-surface);
+  stroke: var(--color-border);
+}
+.gantt-weekend {
+  fill: #f0f4f8;
+  stroke: var(--color-border);
+}
+.gantt-bar {
+  fill: #93c5fd;
+  stroke: #2563eb;
+}
+.gantt-bar.critical {
+  fill: #fca5a5;
+  stroke: var(--color-critical);
+}
+.gantt-bar.summary {
+  fill: #cbd5e1;
+  stroke: #64748b;
+}
+.gantt-today-line {
+  stroke: var(--color-danger);
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+}
+.gantt-milestone {
+  fill: #f59e0b;
+}
+.gantt-row-label {
+  font-size: 12px;
+}
