@@ -12,3 +12,8 @@ repos:
         entry: pnpm typecheck
         language: system
         pass_filenames: false
+      - id: test
+        name: vitest (all packages)
+        entry: pnpm test
+        language: system
+        pass_filenames: false

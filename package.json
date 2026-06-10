@@ -9,7 +9,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "verify:guard": "bash scripts/verify-takumi-guard.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4"
