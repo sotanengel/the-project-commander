@@ -1,9 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  type Baseline,
+  type BaselineTask,
   type Dependency,
   DependencyCreateSchema,
   DependencySchema,
+  type ExportBundle,
   type Milestone,
+  MilestoneCreateSchema,
+  MilestoneSchema,
   type Project,
   ProjectCreateSchema,
   type ProjectPlan,
@@ -11,6 +16,9 @@ import {
   type Risk,
   RiskCreateSchema,
   RiskSchema,
+  type Stakeholder,
+  StakeholderCreateSchema,
+  StakeholderSchema,
   type Task,
   TaskSchema,
   TaskUpdateSchema,
@@ -380,6 +388,194 @@ export function createMcpServer(db: Db): McpServer {
         created.push(risk);
       }
       return jsonContent(created);
+    },
+  );
+
+  server.registerTool(
+    "add_milestones",
+    {
+      description:
+        "プロジェクトにマイルストーンを一括登録する。各要素は name（マイルストーン名）と dueDate（期日、YYYY-MM-DD形式）が必須で、status（pending=未達成 / done=達成済み、省略時はpending）を任意指定できる。登録したマイルストーンの一覧を返す。",
+      inputSchema: {
+        projectId: z.string(),
+        milestones: z.array(
+          z.object({
+            name: z.string().min(1),
+            dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            status: z.enum(["pending", "done"]).optional(),
+          }),
+        ),
+      },
+    },
+    async ({ projectId, milestones }) => {
+      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      const created = db.transaction(() => {
+        const insert = db.prepare(
+          "INSERT INTO milestones (id, projectId, name, dueDate, status) VALUES (@id, @projectId, @name, @dueDate, @status)",
+        );
+        const rows: Milestone[] = [];
+        for (const raw of milestones) {
+          const input = MilestoneCreateSchema.parse(raw);
+          const milestone = MilestoneSchema.parse({ ...input, id: newId(), projectId });
+          insert.run(milestone);
+          rows.push(milestone);
+        }
+        return rows;
+      })();
+      return jsonContent(created);
+    },
+  );
+
+  server.registerTool(
+    "add_stakeholders",
+    {
+      description:
+        "プロジェクトにステークホルダー（利害関係者）を一括登録する。各要素は name（氏名・組織名）が必須で、role（役割。例: スポンサー、顧客）、influence（影響度: low/medium/high、省略時はmedium）、interest（関心度: low/medium/high、省略時はmedium）、note（関与方針メモ）を任意指定できる。登録したステークホルダーの一覧を返す。",
+      inputSchema: {
+        projectId: z.string(),
+        stakeholders: z.array(
+          z.object({
+            name: z.string().min(1),
+            role: z.string().optional(),
+            influence: z.enum(["low", "medium", "high"]).optional(),
+            interest: z.enum(["low", "medium", "high"]).optional(),
+            note: z.string().optional(),
+          }),
+        ),
+      },
+    },
+    async ({ projectId, stakeholders }) => {
+      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      const created = db.transaction(() => {
+        const insert = db.prepare(
+          `INSERT INTO stakeholders (id, projectId, name, role, influence, interest, note)
+           VALUES (@id, @projectId, @name, @role, @influence, @interest, @note)`,
+        );
+        const rows: Stakeholder[] = [];
+        for (const raw of stakeholders) {
+          const input = StakeholderCreateSchema.parse(raw);
+          const stakeholder = StakeholderSchema.parse({ ...input, id: newId(), projectId });
+          insert.run(stakeholder);
+          rows.push(stakeholder);
+        }
+        return rows;
+      })();
+      return jsonContent(created);
+    },
+  );
+
+  server.registerTool(
+    "list_risks",
+    {
+      description:
+        "プロジェクトのリスク登録簿（リスク一覧）を返す。各リスクは title（タイトル）、probability（発生確率: low/medium/high）、impact（影響度: low/medium/high）、response（対応方針）、status（状態: open=対応中 / watching=監視中 / closed=完了）を持つ。",
+      inputSchema: { projectId: z.string() },
+    },
+    async ({ projectId }) => {
+      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      const rows = db.prepare("SELECT * FROM risks WHERE projectId = ?").all(projectId) as Risk[];
+      return jsonContent(rows.map((r) => RiskSchema.parse(r)));
+    },
+  );
+
+  server.registerTool(
+    "create_baseline",
+    {
+      description:
+        "現在のプロジェクト計画のスケジュールベースライン（承認版スナップショット）を保存する。現時点のタスク・依存関係からCPM（クリティカルパス法）を計算し、プロジェクト全体所要日数と各ワークパッケージの早期開始/終了日をスナップショットとして記録する。label（ベースライン名。例: 承認版v1）を任意指定できる。後から実績と比較して計画乖離を分析するために使う。結果として保存したベースラインのID・projectDuration（全体所要日数）・taskCount（スナップショットに含まれるタスク数）を返す。",
+      inputSchema: {
+        projectId: z.string(),
+        label: z.string().optional(),
+      },
+    },
+    async ({ projectId, label }) => {
+      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      const tasks = db.prepare("SELECT * FROM tasks WHERE projectId = ?").all(projectId) as Task[];
+      const dependencies = db
+        .prepare("SELECT * FROM dependencies WHERE projectId = ?")
+        .all(projectId) as Dependency[];
+      const cpm = computeCpm(tasks, dependencies);
+      const taskById = new Map(tasks.map((t) => [t.id, t]));
+      const snapshot: BaselineTask[] = cpm.tasks.map((s) => ({
+        taskId: s.taskId,
+        name: taskById.get(s.taskId)?.name ?? "",
+        durationDays: taskById.get(s.taskId)?.durationDays ?? 0,
+        earlyStart: s.earlyStart,
+        earlyFinish: s.earlyFinish,
+      }));
+      const baseline: Baseline = {
+        id: newId(),
+        projectId,
+        label: label ?? "",
+        createdAt: new Date().toISOString(),
+        projectDuration: cpm.projectDuration,
+        tasks: snapshot,
+      };
+      db.prepare(
+        "INSERT INTO baselines (id, projectId, label, createdAt, data) VALUES (@id, @projectId, @label, @createdAt, @data)",
+      ).run({
+        id: baseline.id,
+        projectId: baseline.projectId,
+        label: baseline.label,
+        createdAt: baseline.createdAt,
+        data: JSON.stringify({ projectDuration: baseline.projectDuration, tasks: baseline.tasks }),
+      });
+      return jsonContent({
+        id: baseline.id,
+        projectId: baseline.projectId,
+        label: baseline.label,
+        createdAt: baseline.createdAt,
+        projectDuration: baseline.projectDuration,
+        taskCount: baseline.tasks.length,
+      });
+    },
+  );
+
+  server.registerTool(
+    "export_project",
+    {
+      description:
+        "プロジェクト一式（プロジェクト情報・タスク・依存関係・マイルストーン・リスク・ステークホルダー・ベースライン）をExportBundle形式のJSONとして出力する。生成AIがプロジェクト全体を一度に読み取って状況分析・レポート作成・別ツールへのデータ引き継ぎ（インポート）を行う用途に使える。",
+      inputSchema: { projectId: z.string() },
+    },
+    async ({ projectId }) => {
+      const projectRow = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId);
+      if (!projectRow) toolError("プロジェクトが見つかりません");
+      const baselineRows = db
+        .prepare("SELECT * FROM baselines WHERE projectId = ? ORDER BY createdAt")
+        .all(projectId) as Array<{
+        id: string;
+        projectId: string;
+        label: string;
+        createdAt: string;
+        data: string;
+      }>;
+      const bundle: ExportBundle = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        project: ProjectSchema.parse(projectRow),
+        tasks: db
+          .prepare("SELECT * FROM tasks WHERE projectId = ? ORDER BY sortOrder")
+          .all(projectId) as Task[],
+        dependencies: db
+          .prepare("SELECT * FROM dependencies WHERE projectId = ?")
+          .all(projectId) as Dependency[],
+        milestones: db
+          .prepare("SELECT * FROM milestones WHERE projectId = ?")
+          .all(projectId) as Milestone[],
+        risks: db.prepare("SELECT * FROM risks WHERE projectId = ?").all(projectId) as Risk[],
+        stakeholders: db
+          .prepare("SELECT * FROM stakeholders WHERE projectId = ?")
+          .all(projectId) as Stakeholder[],
+        baselines: baselineRows.map((row) => ({
+          id: row.id,
+          projectId: row.projectId,
+          label: row.label,
+          createdAt: row.createdAt,
+          ...(JSON.parse(row.data) as { projectDuration: number; tasks: BaselineTask[] }),
+        })),
+      };
+      return jsonContent(bundle);
     },
   );
 

@@ -56,7 +56,7 @@ describe("MCPツール（InMemoryTransport結合）", () => {
     return project.id;
   }
 
-  it("ツールが9個定義されている", async () => {
+  it("ツールが14個定義されている", async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual(
@@ -70,6 +70,11 @@ describe("MCPツール（InMemoryTransport結合）", () => {
         "set_dependencies",
         "get_critical_path",
         "add_risks",
+        "add_milestones",
+        "add_stakeholders",
+        "list_risks",
+        "create_baseline",
+        "export_project",
       ].sort(),
     );
     for (const tool of tools) {
@@ -367,6 +372,262 @@ describe("MCPツール（InMemoryTransport結合）", () => {
     });
     expect(resultError(result)).toContain("プロジェクトが見つかりません");
   });
+
+  it("add_milestones でマイルストーンを一括登録できる", async () => {
+    const projectId = await createProject();
+    const created = resultJson(
+      await client.callTool({
+        name: "add_milestones",
+        arguments: {
+          projectId,
+          milestones: [
+            { name: "要件確定", dueDate: "2026-07-01" },
+            { name: "リリース", dueDate: "2026-09-30", status: "pending" },
+          ],
+        },
+      }),
+    ) as { id: string; name: string; dueDate: string; status: string }[];
+    expect(created).toHaveLength(2);
+    expect(created[0]?.name).toBe("要件確定");
+    expect(created[0]?.status).toBe("pending");
+    expect(created[1]?.dueDate).toBe("2026-09-30");
+    const rows = db.prepare("SELECT * FROM milestones WHERE projectId = ?").all(projectId);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("add_milestones は不正な日付でエラーを返す", async () => {
+    const projectId = await createProject();
+    const result = await client.callTool({
+      name: "add_milestones",
+      arguments: { projectId, milestones: [{ name: "x", dueDate: "2026/07/01" }] },
+    });
+    expect((result as { isError?: boolean }).isError).toBe(true);
+  });
+
+  it("add_milestones は存在しないプロジェクトでエラーを返す", async () => {
+    const result = await client.callTool({
+      name: "add_milestones",
+      arguments: { projectId: "nope", milestones: [{ name: "x", dueDate: "2026-07-01" }] },
+    });
+    expect(resultError(result)).toContain("プロジェクトが見つかりません");
+  });
+
+  it("add_stakeholders でステークホルダーを一括登録できる", async () => {
+    const projectId = await createProject();
+    const created = resultJson(
+      await client.callTool({
+        name: "add_stakeholders",
+        arguments: {
+          projectId,
+          stakeholders: [
+            {
+              name: "鈴木部長",
+              role: "スポンサー",
+              influence: "high",
+              interest: "medium",
+              note: "月次で報告",
+            },
+            { name: "田中" },
+          ],
+        },
+      }),
+    ) as { id: string; name: string; role: string; influence: string; interest: string }[];
+    expect(created).toHaveLength(2);
+    expect(created[0]?.influence).toBe("high");
+    expect(created[0]?.role).toBe("スポンサー");
+    expect(created[1]?.influence).toBe("medium");
+    expect(created[1]?.role).toBe("");
+    const rows = db.prepare("SELECT * FROM stakeholders WHERE projectId = ?").all(projectId);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("add_stakeholders は存在しないプロジェクトでエラーを返す", async () => {
+    const result = await client.callTool({
+      name: "add_stakeholders",
+      arguments: { projectId: "nope", stakeholders: [{ name: "x" }] },
+    });
+    expect(resultError(result)).toContain("プロジェクトが見つかりません");
+  });
+
+  it("list_risks でリスク一覧を取得できる", async () => {
+    const projectId = await createProject();
+    await client.callTool({
+      name: "add_risks",
+      arguments: {
+        projectId,
+        risks: [
+          { title: "キーパーソン離脱", probability: "low", impact: "high", response: "引継ぎ" },
+          { title: "要件膨張", status: "watching" },
+        ],
+      },
+    });
+    const risks = resultJson(
+      await client.callTool({ name: "list_risks", arguments: { projectId } }),
+    ) as { title: string; probability: string; impact: string; response: string; status: string }[];
+    expect(risks).toHaveLength(2);
+    const r1 = risks.find((r) => r.title === "キーパーソン離脱");
+    expect(r1?.probability).toBe("low");
+    expect(r1?.impact).toBe("high");
+    expect(r1?.response).toBe("引継ぎ");
+    expect(r1?.status).toBe("open");
+    const r2 = risks.find((r) => r.title === "要件膨張");
+    expect(r2?.status).toBe("watching");
+  });
+
+  it("list_risks はリスク未登録なら空配列を返す", async () => {
+    const projectId = await createProject();
+    const risks = resultJson(
+      await client.callTool({ name: "list_risks", arguments: { projectId } }),
+    ) as unknown[];
+    expect(risks).toEqual([]);
+  });
+
+  it("list_risks は存在しないプロジェクトでエラーを返す", async () => {
+    const result = await client.callTool({
+      name: "list_risks",
+      arguments: { projectId: "nope" },
+    });
+    expect(resultError(result)).toContain("プロジェクトが見つかりません");
+  });
+
+  it("create_baseline で現計画のスナップショットを保存できる", async () => {
+    const projectId = await createProject();
+    const created = resultJson(
+      await client.callTool({
+        name: "add_tasks",
+        arguments: {
+          projectId,
+          tasks: [
+            { name: "設計", durationDays: 3 },
+            { name: "実装", durationDays: 5 },
+          ],
+        },
+      }),
+    ) as { id: string }[];
+    const a = created[0];
+    const b = created[1];
+    if (!a || !b) throw new Error("setup failed");
+    await client.callTool({
+      name: "set_dependencies",
+      arguments: { projectId, dependencies: [{ predecessorId: a.id, successorId: b.id }] },
+    });
+
+    const baseline = resultJson(
+      await client.callTool({
+        name: "create_baseline",
+        arguments: { projectId, label: "承認版v1" },
+      }),
+    ) as { id: string; label: string; projectDuration: number; taskCount: number };
+    expect(baseline.id).toBeTruthy();
+    expect(baseline.label).toBe("承認版v1");
+    expect(baseline.projectDuration).toBe(8);
+    expect(baseline.taskCount).toBe(2);
+
+    const rows = db.prepare("SELECT * FROM baselines WHERE projectId = ?").all(projectId) as {
+      label: string;
+      data: string;
+    }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.label).toBe("承認版v1");
+    const data = JSON.parse(rows[0]?.data ?? "{}") as {
+      projectDuration: number;
+      tasks: { taskId: string; name: string; earlyStart: number; earlyFinish: number }[];
+    };
+    expect(data.projectDuration).toBe(8);
+    expect(data.tasks).toHaveLength(2);
+    expect(data.tasks.map((t) => t.name).sort()).toEqual(["実装", "設計"]);
+  });
+
+  it("create_baseline はラベル省略時に空文字で保存する", async () => {
+    const projectId = await createProject();
+    const baseline = resultJson(
+      await client.callTool({ name: "create_baseline", arguments: { projectId } }),
+    ) as { label: string; projectDuration: number; taskCount: number };
+    expect(baseline.label).toBe("");
+    expect(baseline.projectDuration).toBe(0);
+    expect(baseline.taskCount).toBe(0);
+  });
+
+  it("create_baseline は存在しないプロジェクトでエラーを返す", async () => {
+    const result = await client.callTool({
+      name: "create_baseline",
+      arguments: { projectId: "nope" },
+    });
+    expect(resultError(result)).toContain("プロジェクトが見つかりません");
+  });
+
+  it("export_project がExportBundle（プロジェクト一式）を返す", async () => {
+    const projectId = await createProject();
+    const created = resultJson(
+      await client.callTool({
+        name: "add_tasks",
+        arguments: {
+          projectId,
+          tasks: [
+            { name: "設計", durationDays: 3 },
+            { name: "実装", durationDays: 5 },
+          ],
+        },
+      }),
+    ) as { id: string }[];
+    const a = created[0];
+    const b = created[1];
+    if (!a || !b) throw new Error("setup failed");
+    await client.callTool({
+      name: "set_dependencies",
+      arguments: { projectId, dependencies: [{ predecessorId: a.id, successorId: b.id }] },
+    });
+    await client.callTool({
+      name: "add_milestones",
+      arguments: { projectId, milestones: [{ name: "リリース", dueDate: "2026-09-30" }] },
+    });
+    await client.callTool({
+      name: "add_risks",
+      arguments: { projectId, risks: [{ title: "要件膨張" }] },
+    });
+    await client.callTool({
+      name: "add_stakeholders",
+      arguments: { projectId, stakeholders: [{ name: "鈴木部長" }] },
+    });
+    await client.callTool({
+      name: "create_baseline",
+      arguments: { projectId, label: "v1" },
+    });
+
+    const bundle = resultJson(
+      await client.callTool({ name: "export_project", arguments: { projectId } }),
+    ) as {
+      version: number;
+      exportedAt: string;
+      project: { id: string; name: string };
+      tasks: unknown[];
+      dependencies: unknown[];
+      milestones: unknown[];
+      risks: unknown[];
+      stakeholders: unknown[];
+      baselines: { label: string; projectDuration: number; tasks: unknown[] }[];
+    };
+    expect(bundle.version).toBe(1);
+    expect(bundle.exportedAt).toBeTruthy();
+    expect(bundle.project.id).toBe(projectId);
+    expect(bundle.tasks).toHaveLength(2);
+    expect(bundle.dependencies).toHaveLength(1);
+    expect(bundle.milestones).toHaveLength(1);
+    expect(bundle.risks).toHaveLength(1);
+    expect(bundle.stakeholders).toHaveLength(1);
+    expect(bundle.baselines).toHaveLength(1);
+    expect(bundle.baselines[0]?.label).toBe("v1");
+    expect(bundle.baselines[0]?.projectDuration).toBe(8);
+    expect(bundle.baselines[0]?.tasks).toHaveLength(2);
+  });
+
+  it("export_project は存在しないプロジェクトでエラーを返す", async () => {
+    const result = await client.callTool({
+      name: "export_project",
+      arguments: { projectId: "nope" },
+    });
+    expect(resultError(result)).toContain("プロジェクトが見つかりません");
+  });
 });
 
 describe("POST /mcp（Streamable HTTP）", () => {
@@ -391,7 +652,7 @@ describe("POST /mcp（Streamable HTTP）", () => {
     await client.connect(transport);
     try {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(9);
+      expect(tools).toHaveLength(14);
       const result = await client.callTool({
         name: "create_project",
         arguments: { name: "HTTP経由PJ", startDate: "2026-07-01" },
