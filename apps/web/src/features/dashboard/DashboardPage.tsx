@@ -1,15 +1,17 @@
 import type { Project } from "@tpc/shared";
 import { type FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
+import ProjectCard from "./ProjectCard.js";
+import "./dashboard.css";
 
 /**
  * プロジェクト一覧 / ダッシュボード。
- * 暫定版（基盤スタブ）: 進捗サマリ等の本実装はユニット6で置き換える。
  */
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const reload = () => {
@@ -27,9 +29,22 @@ export default function DashboardPage() {
     try {
       await api.createProject({
         name,
-        startDate: new Date().toISOString().slice(0, 10),
+        startDate,
+        description: description || undefined,
       });
       setName("");
+      setDescription("");
+      reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleDelete = async (project: Project) => {
+    if (!window.confirm(`プロジェクト「${project.name}」を削除しますか？`)) return;
+    setError(null);
+    try {
+      await api.deleteProject(project.id);
       reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -37,41 +52,51 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="container">
-      <h1>⌘ The Project Commander</h1>
-      <p className="muted">プロジェクトの計画づくりと進行管理をシンプルに。</p>
+    <main className="container dashboard">
+      <div className="dashboard-hero">
+        <h1>⌘ The Project Commander</h1>
+        <p className="muted">プロジェクトの計画づくりと進行管理をシンプルに。</p>
+      </div>
       {error && <p className="error">{error}</p>}
-      <form className="card row" onSubmit={handleCreate}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="新しいプロジェクト名"
-          required
-        />
-        <button type="submit">作成</button>
+      <form className="card project-create-form" onSubmit={handleCreate}>
+        <div className="row">
+          <label className="grow">
+            プロジェクト名
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="新しいプロジェクト名"
+              required
+            />
+          </label>
+          <label>
+            開始日
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </label>
+          <button type="submit">作成</button>
+        </div>
+        <details className="project-create-details">
+          <summary>説明を追加（任意）</summary>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="プロジェクトの概要"
+            rows={2}
+          />
+        </details>
       </form>
-      <div className="card">
+      <div className="project-grid">
         {projects.length === 0 ? (
-          <p className="muted">プロジェクトはまだありません。上のフォームから作成してください。</p>
+          <p className="muted card empty-hint">
+            プロジェクトはまだありません。上のフォームから作成してください。
+          </p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>プロジェクト</th>
-                <th>開始日</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <Link to={`/projects/${p.id}`}>{p.name}</Link>
-                  </td>
-                  <td>{p.startDate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          projects.map((p) => <ProjectCard key={p.id} project={p} onDelete={handleDelete} />)
         )}
       </div>
     </main>
