@@ -1,18 +1,32 @@
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { FastifyInstance } from "fastify";
 import type { Db } from "../db.js";
+import { createMcpServer } from "./server.js";
 
 /**
  * 生成AIクライアント向けMCPエンドポイント（Streamable HTTP, /mcp）。
- *
- * 暫定版（基盤スタブ）: ユニット5で @modelcontextprotocol/sdk を使った
- * 本実装（list_projects / get_project_plan / add_tasks 等のツール）に置き換える。
  */
-export async function registerMcpRoutes(app: FastifyInstance, _db: Db): Promise<void> {
-  app.post("/mcp", async (_req, reply) => {
-    return reply.code(501).send({
-      jsonrpc: "2.0",
-      error: { code: -32601, message: "MCPサーバーは未実装です（ユニット5で実装予定）" },
-      id: null,
+export async function registerMcpRoutes(app: FastifyInstance, db: Db): Promise<void> {
+  app.post("/mcp", async (req, reply) => {
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
     });
+    const mcpServer = createMcpServer(db);
+    await mcpServer.connect(transport);
+    reply.hijack();
+    try {
+      await transport.handleRequest(req.raw, reply.raw, req.body);
+    } finally {
+      await transport.close();
+      await mcpServer.close();
+    }
+  });
+
+  app.get("/mcp", async (_req, reply) => {
+    return reply.code(405).send({ error: "Method Not Allowed" });
+  });
+
+  app.delete("/mcp", async (_req, reply) => {
+    return reply.code(405).send({ error: "Method Not Allowed" });
   });
 }

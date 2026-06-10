@@ -16,13 +16,17 @@ interface TextContent {
 function resultJson(result: unknown): unknown {
   const r = result as { content: TextContent[]; isError?: boolean };
   expect(r.isError ?? false).toBe(false);
-  return JSON.parse(r.content[0].text);
+  const first = r.content[0];
+  if (!first) throw new Error("empty tool result");
+  return JSON.parse(first.text);
 }
 
 function resultError(result: unknown): string {
   const r = result as { content: TextContent[]; isError?: boolean };
   expect(r.isError).toBe(true);
-  return r.content[0].text;
+  const first = r.content[0];
+  if (!first) throw new Error("empty tool error");
+  return first.text;
 }
 
 describe("MCPツール（InMemoryTransport結合）", () => {
@@ -80,8 +84,8 @@ describe("MCPツール（InMemoryTransport結合）", () => {
       name: string;
     }[];
     expect(list).toHaveLength(1);
-    expect(list[0].id).toBe(projectId);
-    expect(list[0].name).toBe("テストPJ");
+    expect(list[0]?.id).toBe(projectId);
+    expect(list[0]?.name).toBe("テストPJ");
   });
 
   it("create_project は不正な日付でエラー（isError）を返す", async () => {
@@ -141,7 +145,7 @@ describe("MCPツール（InMemoryTransport結合）", () => {
     const updated = resultJson(
       await client.callTool({
         name: "update_task",
-        arguments: { taskId: created[0].id, progress: 50, assignee: "佐藤" },
+        arguments: { taskId: created[0]?.id, progress: 50, assignee: "佐藤" },
       }),
     ) as { progress: number; assignee: string; durationDays: number; name: string };
     expect(updated.progress).toBe(50);
@@ -210,7 +214,10 @@ describe("MCPツール（InMemoryTransport結合）", () => {
         },
       }),
     ) as { id: string; name: string }[];
-    const [a, b, c] = created;
+    const a = created[0];
+    const b = created[1];
+    const c = created[2];
+    if (!a || !b || !c) throw new Error("setup failed");
 
     const res = resultJson(
       await client.callTool({
@@ -243,7 +250,9 @@ describe("MCPツール（InMemoryTransport結合）", () => {
         },
       }),
     ) as { id: string }[];
-    const [a, b] = created;
+    const a = created[0];
+    const b = created[1];
+    if (!a || !b) throw new Error("setup failed");
 
     const result = await client.callTool({
       name: "set_dependencies",
@@ -276,7 +285,10 @@ describe("MCPツール（InMemoryTransport結合）", () => {
         },
       }),
     ) as { id: string; name: string }[];
-    const [design, impl, doc] = created;
+    const design = created[0];
+    const impl = created[1];
+    const doc = created[2];
+    if (!design || !impl || !doc) throw new Error("setup failed");
     await client.callTool({
       name: "set_dependencies",
       arguments: {
@@ -322,8 +334,8 @@ describe("MCPツール（InMemoryTransport結合）", () => {
       }),
     ) as { title: string; probability: string; impact: string }[];
     expect(risks).toHaveLength(2);
-    expect(risks[0].probability).toBe("low");
-    expect(risks[1].probability).toBe("medium");
+    expect(risks[0]?.probability).toBe("low");
+    expect(risks[1]?.probability).toBe("medium");
     const rows = db.prepare("SELECT * FROM risks WHERE projectId = ?").all(projectId);
     expect(rows).toHaveLength(2);
   });
