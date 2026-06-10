@@ -26,3 +26,8 @@ TG_AUTH_TOKEN=<トークン> docker compose up --build
 # → http://localhost:3000
 ```
 
+## ドキュメント
+
+- [使い方・MCP・プロンプト](docs/usage.md)
+- [開発ガイド（TDD / CI / Guard）](docs/development.md)
+
