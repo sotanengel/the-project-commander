@@ -1,0 +1,162 @@
+/* ダッシュボード（プロジェクト一覧）専用スタイル */
+
+.dashboard-hero {
+  margin-bottom: 24px;
+}
+
+.dashboard-hero h1 {
+  margin: 0 0 4px;
+}
+
+.dashboard-hero p {
+  margin: 0;
+}
+
+/* 作成フォーム */
+.project-create-form .row {
+  align-items: flex-end;
+}
+
+.project-create-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.project-create-form .grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.project-create-details {
+  margin-top: 8px;
+}
+
+.project-create-details summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.project-create-details textarea {
+  width: 100%;
+  margin-top: 8px;
+  resize: vertical;
+}
+
+/* カードグリッド */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 0;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.project-card:hover,
+.project-card:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.18);
+  outline: none;
+}
+
+.project-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.project-card-date {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.project-card-delete {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.project-card-delete:hover {
+  background: #fee2e2;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* 進捗バー */
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.progress-fill.done {
+  background: var(--color-success);
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.progress-label strong {
+  font-size: 18px;
+}
+
+/* 統計バッジ列 */
+.project-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.project-card-note {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* 空状態 */
+.dashboard-empty {
+  text-align: center;
+  padding: 48px 16px;
+}
+
+.dashboard-empty .icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
