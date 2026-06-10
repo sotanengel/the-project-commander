@@ -1,0 +1,162 @@
+import { z } from "zod";
+
+// ---- 共通 ----
+export const LevelSchema = z.enum(["low", "medium", "high"]);
+export type Level = z.infer<typeof LevelSchema>;
+
+/** YYYY-MM-DD */
+export const DateStringSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD形式で指定してください");
+
+// ---- プロジェクト ----
+export const ProjectSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, "プロジェクト名は必須です"),
+  description: z.string().default(""),
+  startDate: DateStringSchema,
+  createdAt: z.string(),
+});
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const ProjectCreateSchema = ProjectSchema.omit({ id: true, createdAt: true }).partial({
+  description: true,
+});
+export type ProjectCreateInput = z.infer<typeof ProjectCreateSchema>;
+
+// ---- タスク（WBS要素。子を持たないタスク = ワークパッケージ） ----
+export const TaskSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  parentId: z.string().nullable().default(null),
+  name: z.string().min(1, "タスク名は必須です"),
+  description: z.string().default(""),
+  /** 所要日数。サマリタスク（子を持つタスク）では子からロールアップされる */
+  durationDays: z.number().nonnegative().default(1),
+  /** 進捗率 0-100 */
+  progress: z.number().min(0).max(100).default(0),
+  assignee: z.string().default(""),
+  /** 同一親内での表示順 */
+  sortOrder: z.number().int().default(0),
+});
+export type Task = z.infer<typeof TaskSchema>;
+
+export const TaskCreateSchema = TaskSchema.omit({ id: true, projectId: true }).partial({
+  parentId: true,
+  description: true,
+  durationDays: true,
+  progress: true,
+  assignee: true,
+  sortOrder: true,
+});
+export type TaskCreateInput = z.infer<typeof TaskCreateSchema>;
+
+export const TaskUpdateSchema = TaskCreateSchema.partial();
+export type TaskUpdateInput = z.infer<typeof TaskUpdateSchema>;
+
+// ---- 依存関係（PMBOK: FS/SS/FF/SF + リード(負のlag)/ラグ） ----
+export const DependencyTypeSchema = z.enum(["FS", "SS", "FF", "SF"]);
+export type DependencyType = z.infer<typeof DependencyTypeSchema>;
+
+export const DependencySchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  predecessorId: z.string(),
+  successorId: z.string(),
+  type: DependencyTypeSchema.default("FS"),
+  /** ラグ日数。負の値はリード */
+  lagDays: z.number().default(0),
+});
+export type Dependency = z.infer<typeof DependencySchema>;
+
+export const DependencyCreateSchema = DependencySchema.omit({ id: true, projectId: true }).partial({
+  type: true,
+  lagDays: true,
+});
+export type DependencyCreateInput = z.infer<typeof DependencyCreateSchema>;
+
+// ---- マイルストーン ----
+export const MilestoneSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  name: z.string().min(1),
+  dueDate: DateStringSchema,
+  status: z.enum(["pending", "done"]).default("pending"),
+});
+export type Milestone = z.infer<typeof MilestoneSchema>;
+
+export const MilestoneCreateSchema = MilestoneSchema.omit({ id: true, projectId: true }).partial({
+  status: true,
+});
+export type MilestoneCreateInput = z.infer<typeof MilestoneCreateSchema>;
+
+// ---- リスク登録簿 ----
+export const RiskSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  title: z.string().min(1),
+  probability: LevelSchema.default("medium"),
+  impact: LevelSchema.default("medium"),
+  /** 対応方針 */
+  response: z.string().default(""),
+  status: z.enum(["open", "watching", "closed"]).default("open"),
+});
+export type Risk = z.infer<typeof RiskSchema>;
+
+export const RiskCreateSchema = RiskSchema.omit({ id: true, projectId: true }).partial({
+  probability: true,
+  impact: true,
+  response: true,
+  status: true,
+});
+export type RiskCreateInput = z.infer<typeof RiskCreateSchema>;
+
+// ---- ステークホルダー登録簿 ----
+export const StakeholderSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  name: z.string().min(1),
+  role: z.string().default(""),
+  influence: LevelSchema.default("medium"),
+  interest: LevelSchema.default("medium"),
+  /** 関与方針メモ */
+  note: z.string().default(""),
+});
+export type Stakeholder = z.infer<typeof StakeholderSchema>;
+
+export const StakeholderCreateSchema = StakeholderSchema.omit({
+  id: true,
+  projectId: true,
+}).partial({ role: true, influence: true, interest: true, note: true });
+export type StakeholderCreateInput = z.infer<typeof StakeholderCreateSchema>;
+
+// ---- CPM計算結果 ----
+export interface ScheduledTask {
+  taskId: string;
+  /** プロジェクト開始日からの経過日数（0始まり） */
+  earlyStart: number;
+  earlyFinish: number;
+  lateStart: number;
+  lateFinish: number;
+  totalFloat: number;
+  freeFloat: number;
+  isCritical: boolean;
+}
+
+export interface CpmResult {
+  /** ワークパッケージ（葉タスク）のみが対象 */
+  tasks: ScheduledTask[];
+  /** プロジェクト全体の所要日数 */
+  projectDuration: number;
+  /** クリティカルパス上のタスクID（earlyStart順） */
+  criticalPath: string[];
+}
+
+/** プロジェクト計画の集約ビュー（GET /api/projects/:id/plan のレスポンス） */
+export interface ProjectPlan {
+  project: Project;
+  tasks: Task[];
+  dependencies: Dependency[];
+  milestones: Milestone[];
+  cpm: CpmResult;
+}
