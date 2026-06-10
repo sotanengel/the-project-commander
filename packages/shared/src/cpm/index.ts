@@ -130,7 +130,7 @@ export function computeCpm(tasks: Task[], dependencies: Dependency[]): CpmResult
     // フリーフロート: 後続タスクの最早日程を遅らせずに本タスクを遅らせられる余裕。
     // 依存タイプごとにフォワードパスの制約式と対称な余裕を取る。
     const succs = succsOf.get(id) ?? [];
-    const freeFloat =
+    const successorSlack =
       succs.length === 0
         ? projectDuration - earlyFinish
         : Math.min(
@@ -149,6 +149,9 @@ export function computeCpm(tasks: Task[], dependencies: Dependency[]): CpmResult
               }
             }),
           );
+    // 後続を遅らせずに遅延してもプロジェクト終了日を超えない上限
+    const projectEndSlack = projectDuration - earlyFinish;
+    const freeFloat = Math.min(successorSlack, projectEndSlack);
     return {
       taskId: id,
       earlyStart,
