@@ -32,6 +32,10 @@ export default async function taskRoutes(app: FastifyInstance, { db }: { db: Db 
     return db.prepare("SELECT 1 FROM projects WHERE id = ?").get(projectId) !== undefined;
   }
 
+  function getTask(id: string): Task | undefined {
+    return db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as Task | undefined;
+  }
+
   function nextSortOrder(projectId: string, parentId: string | null): number {
     const row = db
       .prepare(
@@ -39,6 +43,37 @@ export default async function taskRoutes(app: FastifyInstance, { db }: { db: Db 
       )
       .get(projectId, parentId) as { next: number };
     return row.next;
+  }
+
+  /** 親タスクの妥当性を検証。不正ならエラーメッセージを返す */
+  function validateParentId(
+    projectId: string,
+    parentId: string | null | undefined,
+    taskId?: string,
+  ): string | null {
+    if (parentId === undefined || parentId === null) return null;
+    if (taskId !== undefined && parentId === taskId) {
+      return "親タスクに自分自身を指定すると循環参照になります";
+    }
+    const parent = getTask(parentId);
+    if (!parent) return "親タスクが見つかりません";
+    if (parent.projectId !== projectId) return "親タスクがこのプロジェクトに属していません";
+    if (taskId !== undefined) {
+      const descendants = new Set<string>();
+      const collect = (id: string) => {
+        for (const child of db.prepare("SELECT id FROM tasks WHERE parentId = ?").all(id) as {
+          id: string;
+        }[]) {
+          descendants.add(child.id);
+          collect(child.id);
+        }
+      };
+      collect(taskId);
+      if (descendants.has(parentId)) {
+        return "親タスクの指定により循環参照が発生します";
+      }
+    }
+    return null;
   }
 
   app.get<{ Params: { projectId: string } }>(
@@ -59,6 +94,8 @@ export default async function taskRoutes(app: FastifyInstance, { db }: { db: Db 
       if (!projectExists(projectId))
         return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       const input = TaskCreateSchema.parse(req.body);
+      const parentError = validateParentId(projectId, input.parentId);
+      if (parentError) return reply.code(400).send({ error: parentError });
       const task = TaskSchema.parse({
         ...input,
         id: newId(),
@@ -105,9 +142,13 @@ export default async function taskRoutes(app: FastifyInstance, { db }: { db: Db 
   );
 
   app.put<{ Params: { id: string } }>("/api/tasks/:id", async (req, reply) => {
-    const existing = db.prepare("SELECT * FROM tasks WHERE id = ?").get(req.params.id);
+    const existing = getTask(req.params.id);
     if (!existing) return reply.code(404).send({ error: "タスクが見つかりません" });
     const input = TaskUpdateSchema.parse(req.body);
+    if ("parentId" in input) {
+      const parentError = validateParentId(existing.projectId, input.parentId, existing.id);
+      if (parentError) return reply.code(400).send({ error: parentError });
+    }
     const updated = TaskSchema.parse({ ...existing, ...input });
     db.prepare(
       `UPDATE tasks SET parentId = @parentId, name = @name, description = @description,
@@ -118,8 +159,9 @@ export default async function taskRoutes(app: FastifyInstance, { db }: { db: Db 
   });
 
   app.delete<{ Params: { id: string } }>("/api/tasks/:id", async (req, reply) => {
-    const result = db.prepare("DELETE FROM tasks WHERE id = ?").run(req.params.id);
-    if (result.changes === 0) return reply.code(404).send({ error: "タスクが見つかりません" });
+    const existing = getTask(req.params.id);
+    if (!existing) return reply.code(404).send({ error: "タスクが見つかりません" });
+    db.prepare("DELETE FROM tasks WHERE id = ?").run(req.params.id);
     return { ok: true };
   });
 }
