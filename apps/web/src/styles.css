@@ -224,3 +224,55 @@ th {
 .gantt-row-label {
   font-size: 12px;
 }
+
+/* ネットワーク図 */
+.network-scroll {
+  overflow: auto;
+  margin-top: 12px;
+}
+.network-node {
+  fill: #dbeafe;
+  stroke: #2563eb;
+}
+.network-node.critical {
+  fill: #fecaca;
+  stroke: var(--color-critical);
+}
+.network-edge {
+  stroke: #94a3b8;
+  stroke-width: 2;
+}
+.network-edge.critical {
+  stroke: var(--color-critical);
+}
+.network-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.network-sub {
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+
+/* WBS */
+.wbs-table {
+  width: 100%;
+}
+.wbs-actions button {
+  margin-right: 4px;
+  font-size: 12px;
+}
+.linkish {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.danger-btn {
+  color: var(--color-danger);
+}
+.muted-btn {
+  color: var(--color-text-muted);
+}
