@@ -12,9 +12,31 @@ const EPSILON = 1e-9;
 /**
  * クリティカルパス法（CPM）によるスケジュール計算。
  *
- * 暫定版（基盤スタブ）: FS依存 + ラグのみ対応。SS/FF/SF・フリーフロートの
- * 完全実装はユニット1で置き換える。
+ * PMBOK第8版準拠のPDM（プレシデンス・ダイアグラム法）完全実装。
+ * 依存タイプ4種（FS/SS/FF/SF）とラグ（負の値=リードも可）に対応する。
  *
+ * フォワードパスの制約:
+ * - FS: ES_succ ≥ EF_pred + lag
+ * - SS: ES_succ ≥ ES_pred + lag
+ * - FF: EF_succ ≥ EF_pred + lag
+ * - SF: EF_succ ≥ ES_pred + lag
+ *
+ * ES = max(0, ES制約)、EF = max(ES + duration, EF制約)。
+ * FF/SF制約が支配する場合は EF > ES + duration となりうるが、ESは引きずらない
+ * （タスクのESは早く開始できる最早日を保持する）。
+ *
+ * バックワードパスは対称に:
+ * - FS: LF_pred ≤ LS_succ - lag
+ * - SS: LS_pred ≤ LS_succ - lag
+ * - FF: LF_pred ≤ LF_succ - lag
+ * - SF: LS_pred ≤ LF_succ - lag
+ *
+ * LF = min(projectDuration, LF制約)、LS = min(LF - duration, LS制約)。
+ *
+ * - トータルフロート = LS - ES。フロートが（誤差 1e-9 内で）0 のタスクが
+ *   クリティカル。
+ * - フリーフロートは依存タイプごとに「後続の最早日程を遅らせない余裕」を計算し、
+ *   後続を持たないタスクは projectDuration - EF。
  * - 対象はワークパッケージ（子を持たない葉タスク）のみ。サマリタスクと
  *   サマリタスクへの依存は無視される。
  * - 日数は数値（プロジェクト開始からの経過日数、0始まり）。
@@ -37,36 +59,66 @@ export function computeCpm(tasks: Task[], dependencies: Dependency[]): CpmResult
 
   const order = topologicalSort(leaves, deps);
 
-  // フォワードパス
+  // フォワードパス: ES/EF を算出
   const es = new Map<string, number>();
   const ef = new Map<string, number>();
   for (const id of order) {
     const task = byId.get(id);
     if (!task) continue;
-    let start = 0;
+    let earliestStart = 0;
+    let finishConstraint = Number.NEGATIVE_INFINITY;
     for (const d of predsOf.get(id) ?? []) {
+      const predStart = es.get(d.predecessorId) ?? 0;
       const predFinish = ef.get(d.predecessorId) ?? 0;
-      start = Math.max(start, predFinish + d.lagDays);
+      switch (d.type) {
+        case "FS":
+          earliestStart = Math.max(earliestStart, predFinish + d.lagDays);
+          break;
+        case "SS":
+          earliestStart = Math.max(earliestStart, predStart + d.lagDays);
+          break;
+        case "FF":
+          finishConstraint = Math.max(finishConstraint, predFinish + d.lagDays);
+          break;
+        case "SF":
+          finishConstraint = Math.max(finishConstraint, predStart + d.lagDays);
+          break;
+      }
     }
-    es.set(id, start);
-    ef.set(id, start + task.durationDays);
+    es.set(id, earliestStart);
+    ef.set(id, Math.max(earliestStart + task.durationDays, finishConstraint));
   }
 
   const projectDuration = Math.max(0, ...order.map((id) => ef.get(id) ?? 0));
 
-  // バックワードパス
+  // バックワードパス: LS/LF を算出（フォワードと対称）
   const ls = new Map<string, number>();
   const lf = new Map<string, number>();
   for (const id of [...order].reverse()) {
     const task = byId.get(id);
     if (!task) continue;
-    let finish = projectDuration;
+    let latestFinish = projectDuration;
+    let startConstraint = Number.POSITIVE_INFINITY;
     for (const d of succsOf.get(id) ?? []) {
-      const succStart = ls.get(d.successorId) ?? projectDuration;
-      finish = Math.min(finish, succStart - d.lagDays);
+      const succLateStart = ls.get(d.successorId) ?? projectDuration;
+      const succLateFinish = lf.get(d.successorId) ?? projectDuration;
+      switch (d.type) {
+        case "FS":
+          latestFinish = Math.min(latestFinish, succLateStart - d.lagDays);
+          break;
+        case "FF":
+          latestFinish = Math.min(latestFinish, succLateFinish - d.lagDays);
+          break;
+        case "SS":
+          startConstraint = Math.min(startConstraint, succLateStart - d.lagDays);
+          break;
+        case "SF":
+          startConstraint = Math.min(startConstraint, succLateFinish - d.lagDays);
+          break;
+      }
     }
-    lf.set(id, finish);
-    ls.set(id, finish - task.durationDays);
+    lf.set(id, latestFinish);
+    ls.set(id, Math.min(latestFinish - task.durationDays, startConstraint));
   }
 
   const scheduled: ScheduledTask[] = order.map((id) => {
@@ -75,12 +127,31 @@ export function computeCpm(tasks: Task[], dependencies: Dependency[]): CpmResult
     const lateStart = ls.get(id) ?? 0;
     const lateFinish = lf.get(id) ?? 0;
     const totalFloat = lateStart - earlyStart;
-    // フリーフロート: 後続のESを遅らせない範囲（FSのみの暫定計算）
+    // フリーフロート: 後続タスクの最早日程を遅らせずに本タスクを遅らせられる余裕。
+    // 依存タイプごとにフォワードパスの制約式と対称な余裕を取る。
     const succs = succsOf.get(id) ?? [];
-    const freeFloat =
+    const successorSlack =
       succs.length === 0
         ? projectDuration - earlyFinish
-        : Math.min(...succs.map((d) => (es.get(d.successorId) ?? 0) - d.lagDays - earlyFinish));
+        : Math.min(
+            ...succs.map((d) => {
+              const succStart = es.get(d.successorId) ?? 0;
+              const succFinish = ef.get(d.successorId) ?? 0;
+              switch (d.type) {
+                case "FS":
+                  return succStart - d.lagDays - earlyFinish;
+                case "SS":
+                  return succStart - d.lagDays - earlyStart;
+                case "FF":
+                  return succFinish - d.lagDays - earlyFinish;
+                case "SF":
+                  return succFinish - d.lagDays - earlyStart;
+              }
+            }),
+          );
+    // 後続を遅らせずに遅延してもプロジェクト終了日を超えない上限
+    const projectEndSlack = projectDuration - earlyFinish;
+    const freeFloat = Math.min(successorSlack, projectEndSlack);
     return {
       taskId: id,
       earlyStart,
