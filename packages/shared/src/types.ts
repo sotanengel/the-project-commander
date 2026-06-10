@@ -160,3 +160,45 @@ export interface ProjectPlan {
   milestones: Milestone[];
   cpm: CpmResult;
 }
+
+// ---- スケジュールベースライン（PMBOK: 承認版スケジュールのスナップショット） ----
+export const BaselineTaskSchema = z.object({
+  taskId: z.string(),
+  name: z.string(),
+  durationDays: z.number(),
+  /** 保存時点のCPM早期開始/終了（プロジェクト開始からの経過日数） */
+  earlyStart: z.number(),
+  earlyFinish: z.number(),
+});
+export type BaselineTask = z.infer<typeof BaselineTaskSchema>;
+
+export const BaselineSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  label: z.string().default(""),
+  createdAt: z.string(),
+  /** 保存時点のプロジェクト全体所要日数 */
+  projectDuration: z.number(),
+  /** 保存時点のワークパッケージ（葉タスク）スナップショット */
+  tasks: z.array(BaselineTaskSchema),
+});
+export type Baseline = z.infer<typeof BaselineSchema>;
+
+export const BaselineCreateSchema = z.object({
+  label: z.string().default(""),
+});
+export type BaselineCreateInput = z.infer<typeof BaselineCreateSchema>;
+
+// ---- プロジェクトのエクスポート/インポート ----
+export const ExportBundleSchema = z.object({
+  version: z.literal(1),
+  exportedAt: z.string(),
+  project: ProjectSchema,
+  tasks: z.array(TaskSchema),
+  dependencies: z.array(DependencySchema),
+  milestones: z.array(MilestoneSchema),
+  risks: z.array(RiskSchema),
+  stakeholders: z.array(StakeholderSchema),
+  baselines: z.array(BaselineSchema).default([]),
+});
+export type ExportBundle = z.infer<typeof ExportBundleSchema>;

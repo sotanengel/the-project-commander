@@ -6,7 +6,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type { Db } from "./db.js";
 import { registerMcpRoutes } from "./mcp/index.js";
+import baselineRoutes from "./routes/baselines.js";
 import dependencyRoutes from "./routes/dependencies.js";
+import exportRoutes from "./routes/export.js";
 import milestoneRoutes from "./routes/milestones.js";
 import projectRoutes from "./routes/projects.js";
 import riskRoutes from "./routes/risks.js";
@@ -43,6 +45,8 @@ export async function buildApp(db: Db): Promise<FastifyInstance> {
   await app.register(milestoneRoutes, { db });
   await app.register(riskRoutes, { db });
   await app.register(stakeholderRoutes, { db });
+  await app.register(baselineRoutes, { db });
+  await app.register(exportRoutes, { db });
   await registerMcpRoutes(app, db);
 
   // ビルド済みSPAの配信（apps/web/dist が存在する場合のみ）

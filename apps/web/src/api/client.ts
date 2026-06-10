@@ -1,6 +1,9 @@
 import type {
+  Baseline,
+  BaselineCreateInput,
   Dependency,
   DependencyCreateInput,
+  ExportBundle,
   Milestone,
   MilestoneCreateInput,
   Project,
@@ -110,6 +113,16 @@ export const api = {
     post<Risk>(`/api/projects/${projectId}/risks`, input),
   updateRisk: (id: string, input: Partial<RiskCreateInput>) => put<Risk>(`/api/risks/${id}`, input),
   deleteRisk: (id: string) => del<{ ok: true }>(`/api/risks/${id}`),
+
+  // スケジュールベースライン
+  listBaselines: (projectId: string) => get<Baseline[]>(`/api/projects/${projectId}/baselines`),
+  createBaseline: (projectId: string, input?: BaselineCreateInput) =>
+    post<Baseline>(`/api/projects/${projectId}/baselines`, input ?? {}),
+  deleteBaseline: (id: string) => del<{ ok: true }>(`/api/baselines/${id}`),
+
+  // エクスポート/インポート
+  exportProject: (projectId: string) => get<ExportBundle>(`/api/projects/${projectId}/export`),
+  importProject: (bundle: ExportBundle) => post<Project>("/api/projects/import", bundle),
 
   // ステークホルダー登録簿
   listStakeholders: (projectId: string) =>

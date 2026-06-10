@@ -55,6 +55,13 @@ export function createDb(path: string): Db {
       response TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'open'
     );
+    CREATE TABLE IF NOT EXISTS baselines (
+      id TEXT PRIMARY KEY,
+      projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT '',
+      createdAt TEXT NOT NULL,
+      data TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS stakeholders (
       id TEXT PRIMARY KEY,
       projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
