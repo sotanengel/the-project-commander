@@ -3,9 +3,15 @@ import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
 
 export default async function stakeholderRoutes(app: FastifyInstance, { db }: { db: Db }) {
+  function projectExists(projectId: string): boolean {
+    return db.prepare("SELECT 1 FROM projects WHERE id = ?").get(projectId) !== undefined;
+  }
+
   app.get<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/stakeholders",
-    async (req) => {
+    async (req, reply) => {
+      if (!projectExists(req.params.projectId))
+        return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       return db
         .prepare("SELECT * FROM stakeholders WHERE projectId = ?")
         .all(req.params.projectId) as Stakeholder[];
@@ -15,6 +21,8 @@ export default async function stakeholderRoutes(app: FastifyInstance, { db }: { 
   app.post<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/stakeholders",
     async (req, reply) => {
+      if (!projectExists(req.params.projectId))
+        return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       const input = StakeholderCreateSchema.parse(req.body);
       const stakeholder = StakeholderSchema.parse({
         ...input,

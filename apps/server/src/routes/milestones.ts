@@ -3,15 +3,26 @@ import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
 
 export default async function milestoneRoutes(app: FastifyInstance, { db }: { db: Db }) {
-  app.get<{ Params: { projectId: string } }>("/api/projects/:projectId/milestones", async (req) => {
-    return db
-      .prepare("SELECT * FROM milestones WHERE projectId = ? ORDER BY dueDate")
-      .all(req.params.projectId) as Milestone[];
-  });
+  function projectExists(projectId: string): boolean {
+    return db.prepare("SELECT 1 FROM projects WHERE id = ?").get(projectId) !== undefined;
+  }
+
+  app.get<{ Params: { projectId: string } }>(
+    "/api/projects/:projectId/milestones",
+    async (req, reply) => {
+      if (!projectExists(req.params.projectId))
+        return reply.code(404).send({ error: "プロジェクトが見つかりません" });
+      return db
+        .prepare("SELECT * FROM milestones WHERE projectId = ? ORDER BY dueDate")
+        .all(req.params.projectId) as Milestone[];
+    },
+  );
 
   app.post<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/milestones",
     async (req, reply) => {
+      if (!projectExists(req.params.projectId))
+        return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       const input = MilestoneCreateSchema.parse(req.body);
       const milestone = MilestoneSchema.parse({
         ...input,
