@@ -125,7 +125,10 @@ describe("outdentTask", () => {
   });
 
   it("親が末尾なら繰り下げ更新は発生しない", () => {
-    const tasks = [task({ id: "p", sortOrder: 0 }), task({ id: "p1", parentId: "p", sortOrder: 0 })];
+    const tasks = [
+      task({ id: "p", sortOrder: 0 }),
+      task({ id: "p1", parentId: "p", sortOrder: 0 }),
+    ];
     const updates = outdentTask(tasks, "p1");
     expect(updates).toEqual([{ id: "p1", input: { parentId: null, sortOrder: 1 } }]);
   });
