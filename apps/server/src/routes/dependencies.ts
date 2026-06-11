@@ -7,6 +7,7 @@ import {
 } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
+import { projectExists } from "../repositories/project.js";
 
 function isUniqueViolation(error: unknown): boolean {
   return (
@@ -18,10 +19,6 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export default async function dependencyRoutes(app: FastifyInstance, { db }: { db: Db }) {
-  function projectExists(projectId: string): boolean {
-    return db.prepare("SELECT 1 FROM projects WHERE id = ?").get(projectId) !== undefined;
-  }
-
   function getTaskInProject(taskId: string, projectId: string): Task | undefined {
     return db
       .prepare("SELECT * FROM tasks WHERE id = ? AND projectId = ?")
@@ -56,7 +53,7 @@ export default async function dependencyRoutes(app: FastifyInstance, { db }: { d
   app.get<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/dependencies",
     async (req, reply) => {
-      if (!projectExists(req.params.projectId))
+      if (!projectExists(db, req.params.projectId))
         return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       return db
         .prepare("SELECT * FROM dependencies WHERE projectId = ?")
@@ -68,7 +65,7 @@ export default async function dependencyRoutes(app: FastifyInstance, { db }: { d
     "/api/projects/:projectId/dependencies",
     async (req, reply) => {
       const { projectId } = req.params;
-      if (!projectExists(projectId))
+      if (!projectExists(db, projectId))
         return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       const input = DependencyCreateSchema.parse(req.body);
       if (input.predecessorId === input.successorId) {

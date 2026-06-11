@@ -1,16 +1,9 @@
-import type { DependencyCreateInput } from "@tpc/shared";
+import { BulkTaskSchema, type DependencyCreateInput } from "@tpc/shared";
 import { z } from "zod";
 import type { BulkTaskInput } from "../../api/client.js";
 import type { PromptPurpose } from "./prompts.js";
 
 // ---- スキーマ ----
-
-const BulkTaskSchema: z.ZodType<BulkTaskInput> = z.object({
-  name: z.string().min(1),
-  durationDays: z.number().optional(),
-  description: z.string().optional(),
-  children: z.lazy(() => z.array(BulkTaskSchema)).optional(),
-});
 
 const WbsImportSchema = z.object({
   tasks: z.array(BulkTaskSchema),

@@ -14,6 +14,7 @@ import {
 } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
+import { listBaselineRows, rowToBaseline } from "../repositories/baseline.js";
 
 /**
  * インポート時のプロジェクト名を決定する。
@@ -41,15 +42,7 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
     const projectRow = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
     if (!projectRow) return reply.code(404).send({ error: "プロジェクトが見つかりません" });
     const projectId = req.params.id;
-    const baselineRows = db
-      .prepare("SELECT * FROM baselines WHERE projectId = ? ORDER BY createdAt")
-      .all(projectId) as Array<{
-      id: string;
-      projectId: string;
-      label: string;
-      createdAt: string;
-      data: string;
-    }>;
+    const baselineRows = listBaselineRows(db, projectId).slice().reverse();
     const bundle: ExportBundle = {
       version: 1,
       exportedAt: new Date().toISOString(),
@@ -67,13 +60,7 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
       stakeholders: db
         .prepare("SELECT * FROM stakeholders WHERE projectId = ?")
         .all(projectId) as Stakeholder[],
-      baselines: baselineRows.map((row) => ({
-        id: row.id,
-        projectId: row.projectId,
-        label: row.label,
-        createdAt: row.createdAt,
-        ...(JSON.parse(row.data) as { projectDuration: number; tasks: BaselineTask[] }),
-      })),
+      baselines: baselineRows.map(rowToBaseline),
     };
     return bundle;
   });

@@ -3,7 +3,16 @@
  * 描画コンポーネントから分離し、Vitestでテスト可能にする。
  */
 import type { Milestone, ProjectPlan, ScheduledTask, Task } from "@tpc/shared";
-import { type WbsNode, buildWbsTree, flattenWbsTree } from "@tpc/shared";
+import {
+  type WbsNode,
+  addDays,
+  buildWbsTree,
+  diffDays,
+  flattenWbsTree,
+  parseDateString,
+  toDateString,
+  todayLocal,
+} from "@tpc/shared";
 
 // ---- レイアウト定数 ----
 export const DAY_WIDTH = 28;
@@ -12,52 +21,25 @@ export const HEADER_HEIGHT = 44;
 export const BAR_HEIGHT = 16;
 export const SUMMARY_BAR_HEIGHT = 8;
 
-// ---- 日付ユーティリティ（タイムゾーン差異を避けるためUTC固定で計算） ----
+// ---- 日付ユーティリティ（shared へ集約。後方互換の別名を re-export） ----
 
-/** YYYY-MM-DD 文字列をUTC日時として解釈する。不正な形式は例外を投げる */
-export function parseDate(dateStr: string): Date {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
-  if (!m) {
-    throw new Error(`日付はYYYY-MM-DD形式で指定してください: ${dateStr}`);
-  }
-  const [, y, mo, d] = m;
-  const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`不正な日付です: ${dateStr}`);
-  }
-  return date;
-}
+/** @deprecated parseDateString を使用してください */
+export const parseDate = parseDateString;
 
-/** Date（UTC基準）を YYYY-MM-DD 文字列にする */
-export function toDateString(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+export { addDays, diffDays, toDateString };
 
-/** 起点日に経過日数を加えた日付（YYYY-MM-DD）を返す */
-export function addDays(dateStr: string, days: number): string {
-  const date = parseDate(dateStr);
-  date.setUTCDate(date.getUTCDate() + days);
-  return toDateString(date);
-}
-
-/** from から to までの経過日数（to - from。toが過去なら負） */
-export function diffDays(from: string, to: string): number {
-  const ms = parseDate(to).getTime() - parseDate(from).getTime();
-  return Math.round(ms / 86_400_000);
-}
+/** @deprecated todayLocal を使用してください */
+export const localToday = todayLocal;
 
 /** 土日かどうか */
 export function isWeekend(dateStr: string): boolean {
-  const dow = parseDate(dateStr).getUTCDay();
+  const dow = parseDateString(dateStr).getUTCDay();
   return dow === 0 || dow === 6;
 }
 
 /** 表示用 M/D */
 export function formatMonthDay(dateStr: string): string {
-  const date = parseDate(dateStr);
+  const date = parseDateString(dateStr);
   return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
 }
 
@@ -230,14 +212,6 @@ export function todayLineX(
   const offset = diffDays(startDate, todayStr);
   if (offset < 0 || offset >= totalDays) return null;
   return (offset + 0.5) * dayWidth;
-}
-
-/** 現地時間の今日を YYYY-MM-DD で返す */
-export function localToday(now: Date = new Date()): string {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }
 
 // ---- ツールチップ文言 ----

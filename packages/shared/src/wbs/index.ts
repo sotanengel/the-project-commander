@@ -152,6 +152,49 @@ function collectCycle(start: string, parentOf: Map<string, string | null>): Set<
   return cycle;
 }
 
+/**
+ * タスクの親変更が WBS として妥当か検証する。
+ * 存在しない親・プロジェクト不一致・循環参照を検出し、エラーメッセージを返す。
+ */
+export function validateTaskParent(
+  tasks: Task[],
+  projectId: string,
+  taskId: string,
+  parentId: string | null | undefined,
+): string | null {
+  if (parentId === undefined || parentId === null) return null;
+  if (parentId === taskId) {
+    return "親タスクに自分自身を指定すると循環参照になります";
+  }
+  const parent = tasks.find((t) => t.id === parentId);
+  if (!parent) return "親タスクが見つかりません";
+  if (parent.projectId !== projectId) return "親タスクがこのプロジェクトに属していません";
+
+  const existing = tasks.find((t) => t.id === taskId);
+  const hypothetical = existing
+    ? tasks.map((t) => (t.id === taskId ? { ...t, parentId } : t))
+    : [
+        ...tasks,
+        {
+          id: taskId,
+          projectId,
+          parentId,
+          name: "_",
+          description: "",
+          durationDays: 1,
+          progress: 0,
+          assignee: "",
+          sortOrder: 0,
+        },
+      ];
+
+  const cycleIssues = validateWbs(hypothetical).issues.filter((i) => i.type === "cycle");
+  if (cycleIssues.some((i) => i.taskId === taskId)) {
+    return "親タスクの指定により循環参照が発生します";
+  }
+  return null;
+}
+
 // ---- 移動系ヘルパー（全て純粋関数。部分更新リストを返す） ----
 
 /** api.updateTask へ渡せるタスクの部分更新 */
@@ -358,4 +401,33 @@ export function normalizeSortOrders(tasks: Task[]): WbsTaskUpdate[] {
     orderedIds: siblingsOf(tasks, parentId).map((t) => t.id),
   }));
   return diffArrangement(tasks, groups);
+}
+
+/** 兄弟タスクを対象の直下に挿入する計画 */
+export interface WbsSiblingInsertPlan {
+  parentId: string | null;
+  sortOrder: number;
+  bumps: WbsTaskUpdate[];
+}
+
+export function insertSiblingPlan(tasks: Task[], afterTaskId: string): WbsSiblingInsertPlan | null {
+  const target = tasks.find((t) => t.id === afterTaskId);
+  if (!target) return null;
+  const siblings = siblingsOf(tasks, target.parentId);
+  const idx = siblings.findIndex((t) => t.id === afterTaskId);
+  if (idx < 0) return null;
+  const sortOrder = target.sortOrder + 1;
+  const bumps: WbsTaskUpdate[] = [];
+  for (const sib of siblings) {
+    if (sib.sortOrder >= sortOrder && sib.id !== afterTaskId) {
+      bumps.push({ taskId: sib.id, changes: { sortOrder: sib.sortOrder + 1 } });
+    }
+  }
+  return { parentId: target.parentId, sortOrder, bumps };
+}
+
+/** 子孫タスク数（直接の子のみでなく全子孫） */
+export function countDescendants(tasks: Task[], taskId: string): number {
+  const children = tasks.filter((t) => t.parentId === taskId);
+  return children.reduce((sum, c) => sum + 1 + countDescendants(tasks, c.id), 0);
 }

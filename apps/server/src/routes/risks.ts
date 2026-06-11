@@ -1,16 +1,13 @@
 import { type Risk, RiskCreateSchema, RiskSchema } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
+import { projectExists } from "../repositories/project.js";
 
 export default async function riskRoutes(app: FastifyInstance, { db }: { db: Db }) {
-  function projectExists(projectId: string): boolean {
-    return db.prepare("SELECT 1 FROM projects WHERE id = ?").get(projectId) !== undefined;
-  }
-
   app.get<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/risks",
     async (req, reply) => {
-      if (!projectExists(req.params.projectId))
+      if (!projectExists(db, req.params.projectId))
         return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       return db
         .prepare("SELECT * FROM risks WHERE projectId = ?")
@@ -21,7 +18,7 @@ export default async function riskRoutes(app: FastifyInstance, { db }: { db: Db 
   app.post<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/risks",
     async (req, reply) => {
-      if (!projectExists(req.params.projectId))
+      if (!projectExists(db, req.params.projectId))
         return reply.code(404).send({ error: "プロジェクトが見つかりません" });
       const input = RiskCreateSchema.parse(req.body);
       const risk = RiskSchema.parse({ ...input, id: newId(), projectId: req.params.projectId });

@@ -1,15 +1,7 @@
-import {
-  type Dependency,
-  type Milestone,
-  type Project,
-  ProjectCreateSchema,
-  type ProjectPlan,
-  ProjectSchema,
-  type Task,
-  computeCpm,
-} from "@tpc/shared";
+import { type Project, ProjectCreateSchema, ProjectSchema } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
+import { loadProjectPlan } from "../repositories/project.js";
 
 export default async function projectRoutes(app: FastifyInstance, { db }: { db: Db }) {
   app.get("/api/projects", async () => {
@@ -58,25 +50,8 @@ export default async function projectRoutes(app: FastifyInstance, { db }: { db: 
   });
 
   app.get<{ Params: { id: string } }>("/api/projects/:id/plan", async (req, reply) => {
-    const projectRow = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
-    if (!projectRow) return reply.code(404).send({ error: "プロジェクトが見つかりません" });
-    const project = ProjectSchema.parse(projectRow);
-    const tasks = db
-      .prepare("SELECT * FROM tasks WHERE projectId = ? ORDER BY sortOrder")
-      .all(req.params.id) as Task[];
-    const dependencies = db
-      .prepare("SELECT * FROM dependencies WHERE projectId = ?")
-      .all(req.params.id) as Dependency[];
-    const milestones = db
-      .prepare("SELECT * FROM milestones WHERE projectId = ? ORDER BY dueDate")
-      .all(req.params.id) as Milestone[];
-    const plan: ProjectPlan = {
-      project,
-      tasks,
-      dependencies,
-      milestones,
-      cpm: computeCpm(tasks, dependencies),
-    };
+    const plan = loadProjectPlan(db, req.params.id);
+    if (!plan) return reply.code(404).send({ error: "プロジェクトが見つかりません" });
     return plan;
   });
 }
