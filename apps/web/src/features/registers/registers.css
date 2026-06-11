@@ -1,0 +1,22 @@
+/* 登録簿（リスク / ステークホルダー / マイルストーン）固有スタイル */
+
+/* リスクスコアバッジ: 7以上=赤 / 4〜6=黄 / 3以下=灰（.badge 既定色） */
+.badge.score-high {
+  background: #fee2e2;
+  color: var(--color-critical);
+}
+
+.badge.score-medium {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* 達成済みマイルストーン行は muted 表示 */
+tr.milestone-done {
+  color: var(--color-text-muted);
+}
+
+tr.milestone-done input,
+tr.milestone-done select {
+  color: var(--color-text-muted);
+}

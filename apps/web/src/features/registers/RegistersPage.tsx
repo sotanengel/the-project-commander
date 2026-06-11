@@ -2,8 +2,31 @@ import type { Milestone, Risk, Stakeholder } from "@tpc/shared";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
+import {
+  LEVEL_LABELS,
+  type Level,
+  MILESTONE_STATUS_LABELS,
+  RISK_STATUS_LABELS,
+  engagementCategory,
+  riskScore,
+  scoreSeverity,
+  sortRisksByScoreDesc,
+} from "./registersModel.js";
+import "./registers.css";
 
 type Tab = "risks" | "stakeholders" | "milestones";
+
+const LEVELS = Object.keys(LEVEL_LABELS) as Level[];
+const RISK_STATUSES = Object.keys(RISK_STATUS_LABELS) as Risk["status"][];
+const MILESTONE_STATUSES = Object.keys(MILESTONE_STATUS_LABELS) as Milestone["status"][];
+
+function levelOptions() {
+  return LEVELS.map((level) => (
+    <option key={level} value={level}>
+      {LEVEL_LABELS[level]}
+    </option>
+  ));
+}
 
 export default function RegistersPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -21,12 +44,17 @@ export default function RegistersPage() {
       api.listMilestones(projectId),
     ])
       .then(([r, s, m]) => {
+        setError(null);
         setRisks(r);
         setStakeholders(s);
         setMilestones(m);
       })
       .catch((e: Error) => setError(e.message));
   };
+
+  /** 保存→再取得。失敗時はエラー表示 */
+  const save = (action: Promise<unknown>) =>
+    action.then(reload).catch((e: Error) => setError(e.message));
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: projectId 変更時のみ再取得
   useEffect(() => {
@@ -35,23 +63,22 @@ export default function RegistersPage() {
 
   const addRisk = async () => {
     if (!projectId) return;
-    await api.createRisk(projectId, { title: "新しいリスク" });
-    reload();
+    await save(api.createRisk(projectId, { title: "新しいリスク" }));
   };
 
   const addStakeholder = async () => {
     if (!projectId) return;
-    await api.createStakeholder(projectId, { name: "新しい関係者" });
-    reload();
+    await save(api.createStakeholder(projectId, { name: "新しい関係者" }));
   };
 
   const addMilestone = async () => {
     if (!projectId) return;
-    await api.createMilestone(projectId, {
-      name: "新しいマイルストーン",
-      dueDate: new Date().toISOString().slice(0, 10),
-    });
-    reload();
+    await save(
+      api.createMilestone(projectId, {
+        name: "新しいマイルストーン",
+        dueDate: new Date().toISOString().slice(0, 10),
+      }),
+    );
   };
 
   return (
@@ -85,36 +112,77 @@ export default function RegistersPage() {
                 <th>タイトル</th>
                 <th>確率</th>
                 <th>影響</th>
+                <th>スコア</th>
+                <th>状態</th>
                 <th>対応</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {risks.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <input
-                      defaultValue={r.title}
-                      onBlur={(e) => api.updateRisk(r.id, { title: e.target.value }).then(reload)}
-                    />
-                  </td>
-                  <td>{r.probability}</td>
-                  <td>{r.impact}</td>
-                  <td>
-                    <input
-                      defaultValue={r.response}
-                      onBlur={(e) =>
-                        api.updateRisk(r.id, { response: e.target.value }).then(reload)
-                      }
-                    />
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => api.deleteRisk(r.id).then(reload)}>
-                      削除
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {sortRisksByScoreDesc(risks).map((r) => {
+                const score = riskScore(r.probability, r.impact);
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      <input
+                        defaultValue={r.title}
+                        onBlur={(e) => save(api.updateRisk(r.id, { title: e.target.value }))}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        aria-label="確率"
+                        value={r.probability}
+                        onChange={(e) =>
+                          save(api.updateRisk(r.id, { probability: e.target.value as Level }))
+                        }
+                      >
+                        {levelOptions()}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        aria-label="影響"
+                        value={r.impact}
+                        onChange={(e) =>
+                          save(api.updateRisk(r.id, { impact: e.target.value as Level }))
+                        }
+                      >
+                        {levelOptions()}
+                      </select>
+                    </td>
+                    <td>
+                      <span className={`badge score-${scoreSeverity(score)}`}>{score}</span>
+                    </td>
+                    <td>
+                      <select
+                        aria-label="状態"
+                        value={r.status}
+                        onChange={(e) =>
+                          save(api.updateRisk(r.id, { status: e.target.value as Risk["status"] }))
+                        }
+                      >
+                        {RISK_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {RISK_STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        defaultValue={r.response}
+                        onBlur={(e) => save(api.updateRisk(r.id, { response: e.target.value }))}
+                      />
+                    </td>
+                    <td>
+                      <button type="button" onClick={() => save(api.deleteRisk(r.id))}>
+                        削除
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>
@@ -132,6 +200,7 @@ export default function RegistersPage() {
                 <th>役割</th>
                 <th>影響力</th>
                 <th>関心</th>
+                <th>関与区分</th>
                 <th />
               </tr>
             </thead>
@@ -141,23 +210,42 @@ export default function RegistersPage() {
                   <td>
                     <input
                       defaultValue={s.name}
-                      onBlur={(e) =>
-                        api.updateStakeholder(s.id, { name: e.target.value }).then(reload)
-                      }
+                      onBlur={(e) => save(api.updateStakeholder(s.id, { name: e.target.value }))}
                     />
                   </td>
                   <td>
                     <input
                       defaultValue={s.role}
-                      onBlur={(e) =>
-                        api.updateStakeholder(s.id, { role: e.target.value }).then(reload)
-                      }
+                      onBlur={(e) => save(api.updateStakeholder(s.id, { role: e.target.value }))}
                     />
                   </td>
-                  <td>{s.influence}</td>
-                  <td>{s.interest}</td>
                   <td>
-                    <button type="button" onClick={() => api.deleteStakeholder(s.id).then(reload)}>
+                    <select
+                      aria-label="影響力"
+                      value={s.influence}
+                      onChange={(e) =>
+                        save(api.updateStakeholder(s.id, { influence: e.target.value as Level }))
+                      }
+                    >
+                      {levelOptions()}
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      aria-label="関心"
+                      value={s.interest}
+                      onChange={(e) =>
+                        save(api.updateStakeholder(s.id, { interest: e.target.value as Level }))
+                      }
+                    >
+                      {levelOptions()}
+                    </select>
+                  </td>
+                  <td>
+                    <span className="badge">{engagementCategory(s.influence, s.interest)}</span>
+                  </td>
+                  <td>
+                    <button type="button" onClick={() => save(api.deleteStakeholder(s.id))}>
                       削除
                     </button>
                   </td>
@@ -184,27 +272,41 @@ export default function RegistersPage() {
             </thead>
             <tbody>
               {milestones.map((m) => (
-                <tr key={m.id}>
+                <tr key={m.id} className={m.status === "done" ? "milestone-done" : undefined}>
                   <td>
                     <input
                       defaultValue={m.name}
-                      onBlur={(e) =>
-                        api.updateMilestone(m.id, { name: e.target.value }).then(reload)
-                      }
+                      onBlur={(e) => save(api.updateMilestone(m.id, { name: e.target.value }))}
                     />
                   </td>
                   <td>
                     <input
                       type="date"
                       defaultValue={m.dueDate}
-                      onBlur={(e) =>
-                        api.updateMilestone(m.id, { dueDate: e.target.value }).then(reload)
-                      }
+                      onBlur={(e) => save(api.updateMilestone(m.id, { dueDate: e.target.value }))}
                     />
                   </td>
-                  <td>{m.status}</td>
                   <td>
-                    <button type="button" onClick={() => api.deleteMilestone(m.id).then(reload)}>
+                    <select
+                      aria-label="状態"
+                      value={m.status}
+                      onChange={(e) =>
+                        save(
+                          api.updateMilestone(m.id, {
+                            status: e.target.value as Milestone["status"],
+                          }),
+                        )
+                      }
+                    >
+                      {MILESTONE_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {MILESTONE_STATUS_LABELS[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <button type="button" onClick={() => save(api.deleteMilestone(m.id))}>
                       削除
                     </button>
                   </td>
