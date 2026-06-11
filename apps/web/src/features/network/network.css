@@ -1,0 +1,75 @@
+/* 依存関係エディタ */
+.dependency-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+.dependency-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.dependency-form select {
+  min-width: 160px;
+}
+.dependency-lag-input {
+  width: 90px;
+}
+.dependency-table {
+  margin-top: 12px;
+}
+
+/* エッジラベル（SS+2 / FS-1 など） */
+.network-edge-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #475569;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.network-edge-label.critical {
+  fill: var(--color-critical);
+}
+
+/* 凡例 */
+.network-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.network-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.network-legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.network-legend-swatch.critical {
+  background: #fecaca;
+  border: 2px solid var(--color-critical);
+}
+.network-legend-swatch.normal {
+  background: #dbeafe;
+  border: 2px solid #2563eb;
+}
+.network-legend-type {
+  font-weight: 600;
+  color: var(--color-text);
+}
