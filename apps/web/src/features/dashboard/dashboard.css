@@ -136,6 +136,40 @@
   font-size: 18px;
 }
 
+/* 簡易EVM行（予定進捗/実績 + SPIバッジ） */
+.evm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.spi-badge {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.spi-badge.spi-good {
+  background: #dcfce7;
+  color: var(--color-success);
+}
+
+.spi-badge.spi-warning {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.spi-badge.spi-behind {
+  background: #fee2e2;
+  color: var(--color-danger);
+}
+
+.spi-badge.spi-unknown {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
 /* 統計バッジ列 */
 .project-card-stats {
   display: flex;
