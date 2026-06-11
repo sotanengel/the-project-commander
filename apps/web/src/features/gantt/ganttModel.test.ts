@@ -7,6 +7,7 @@ import {
   buildGanttRows,
   chartDayCount,
   diffDays,
+  progressFillWidth,
   todayLineX,
 } from "./ganttModel.js";
 
@@ -93,5 +94,25 @@ describe("ganttModel", () => {
 
   it("todayLineX は範囲外なら null", () => {
     expect(todayLineX("2026-06-10", 5, "2020-01-01")).toBeNull();
+  });
+
+  describe("progressFillWidth", () => {
+    it("バー幅 × progress% の幅を返す", () => {
+      // 4日 × 28px = 112px の 50% = 56px
+      expect(progressFillWidth(0, 4, 50)).toBe(56);
+    });
+
+    it("0% なら 0", () => {
+      expect(progressFillWidth(0, 4, 0)).toBe(0);
+    });
+
+    it("100% ならバー全幅", () => {
+      expect(progressFillWidth(2, 6, 100)).toBe(112);
+    });
+
+    it("範囲外の progress はクランプする", () => {
+      expect(progressFillWidth(0, 4, 150)).toBe(112);
+      expect(progressFillWidth(0, 4, -10)).toBe(0);
+    });
   });
 });

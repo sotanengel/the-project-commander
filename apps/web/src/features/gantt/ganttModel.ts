@@ -196,6 +196,18 @@ export function barGeometry(start: number, end: number, dayWidth: number = DAY_W
   };
 }
 
+/** 葉タスクバー内の進捗塗り幅（progress% は0-100にクランプ） */
+export function progressFillWidth(
+  start: number,
+  end: number,
+  progress: number,
+  dayWidth: number = DAY_WIDTH,
+): number {
+  const total = barGeometry(start, end, dayWidth).width;
+  const ratio = Math.min(Math.max(progress, 0), 100) / 100;
+  return total * ratio;
+}
+
 /** マイルストーン◆のX座標（該当日セルの中央） */
 export function milestoneX(
   startDate: string,
