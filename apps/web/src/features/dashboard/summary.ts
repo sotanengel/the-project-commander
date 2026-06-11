@@ -43,3 +43,25 @@ export function formatPercent(percent: number): string {
   const rounded = percent > 99 && percent < 100 ? 99 : Math.round(percent);
   return `${rounded}%`;
 }
+
+/** SPIバッジの判定レベル */
+export type SpiLevel = "good" | "warning" | "behind" | "unknown";
+
+export interface SpiBadge {
+  level: SpiLevel;
+  label: string;
+}
+
+/**
+ * SPI（スケジュール効率指数）をバッジ表示用に分類する純粋関数。
+ * - SPI >= 1.0: 緑「順調」
+ * - 0.85 <= SPI < 1.0: 黄「やや遅延」
+ * - SPI < 0.85: 赤「遅延」
+ * - null（計測不能 = PV=0）: 灰「—」
+ */
+export function classifySpi(spi: number | null): SpiBadge {
+  if (spi === null) return { level: "unknown", label: "—" };
+  if (spi >= 1.0) return { level: "good", label: "順調" };
+  if (spi >= 0.85) return { level: "warning", label: "やや遅延" };
+  return { level: "behind", label: "遅延" };
+}

@@ -1,13 +1,14 @@
-import type { Project } from "@tpc/shared";
+import { computeEvm } from "@tpc/shared";
+import type { EvmResult, Project } from "@tpc/shared";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
-import { type ProjectSummary, formatPercent, summarizePlan } from "./summary.js";
+import { type ProjectSummary, classifySpi, formatPercent, summarizePlan } from "./summary.js";
 
 type SummaryState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; summary: ProjectSummary };
+  | { status: "ready"; summary: ProjectSummary; evm: EvmResult };
 
 interface Props {
   project: Project;
@@ -24,7 +25,11 @@ export default function ProjectCard({ project, onDelete }: Props) {
       .getPlan(project.id)
       .then((plan) => {
         if (cancelled) return;
-        setState({ status: "ready", summary: summarizePlan(plan.tasks, plan.cpm) });
+        setState({
+          status: "ready",
+          summary: summarizePlan(plan.tasks, plan.cpm),
+          evm: computeEvm(plan, new Date()),
+        });
       })
       .catch((e: Error) => {
         if (cancelled) return;
@@ -59,12 +64,12 @@ export default function ProjectCard({ project, onDelete }: Props) {
 
       {state.status === "loading" && <p className="muted project-card-note">読み込み中…</p>}
       {state.status === "error" && <p className="error project-card-note">{state.message}</p>}
-      {state.status === "ready" && <SummaryBody summary={state.summary} />}
+      {state.status === "ready" && <SummaryBody summary={state.summary} evm={state.evm} />}
     </article>
   );
 }
 
-function SummaryBody({ summary }: { summary: ProjectSummary }) {
+function SummaryBody({ summary, evm }: { summary: ProjectSummary; evm: EvmResult }) {
   if (summary.workPackageCount === 0) {
     return (
       <p className="muted project-card-note">
@@ -94,6 +99,7 @@ function SummaryBody({ summary }: { summary: ProjectSummary }) {
           />
         </div>
       </div>
+      <EvmRow evm={evm} />
       <div className="project-card-stats">
         <span className="badge">タスク {summary.workPackageCount}件</span>
         <span className="badge">期間 {summary.projectDuration}日</span>
@@ -101,4 +107,26 @@ function SummaryBody({ summary }: { summary: ProjectSummary }) {
       </div>
     </>
   );
+}
+
+/** 簡易EVM行: 予定進捗(PV/BAC)・実績(EV/BAC)とSPIバッジ。BAC=0なら非表示。 */
+function EvmRow({ evm }: { evm: EvmResult }) {
+  if (evm.bac <= 0) return null;
+  const plannedPercent = (evm.pv / evm.bac) * 100;
+  const actualPercent = (evm.ev / evm.bac) * 100;
+  const badge = classifySpi(evm.spi);
+  return (
+    <div className="evm-row">
+      <span className="muted">
+        予定進捗 {formatPercent(plannedPercent)} / 実績 {formatPercent(actualPercent)}
+      </span>
+      <span className={`badge spi-badge spi-${badge.level}`} title={spiTitle(evm.spi)}>
+        {badge.label}
+      </span>
+    </div>
+  );
+}
+
+function spiTitle(spi: number | null): string {
+  return spi === null ? "SPI 計測不能（計画価値が0）" : `SPI ${spi.toFixed(2)}`;
 }

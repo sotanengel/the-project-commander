@@ -1,6 +1,6 @@
 import type { CpmResult, Task } from "@tpc/shared";
 import { describe, expect, it } from "vitest";
-import { formatPercent, summarizePlan } from "./summary.js";
+import { classifySpi, formatPercent, summarizePlan } from "./summary.js";
 
 let seq = 0;
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -76,5 +76,26 @@ describe("formatPercent", () => {
 
   it("99.5%以上100%未満は100%と誤解させないよう99%に丸める", () => {
     expect(formatPercent(99.6)).toBe("99%");
+  });
+});
+
+describe("classifySpi", () => {
+  it("SPI >= 1.0 は緑「順調」", () => {
+    expect(classifySpi(1.0)).toEqual({ level: "good", label: "順調" });
+    expect(classifySpi(1.6)).toEqual({ level: "good", label: "順調" });
+  });
+
+  it("0.85 <= SPI < 1.0 は黄「やや遅延」", () => {
+    expect(classifySpi(0.85)).toEqual({ level: "warning", label: "やや遅延" });
+    expect(classifySpi(0.99)).toEqual({ level: "warning", label: "やや遅延" });
+  });
+
+  it("SPI < 0.85 は赤「遅延」", () => {
+    expect(classifySpi(0.84)).toEqual({ level: "behind", label: "遅延" });
+    expect(classifySpi(0)).toEqual({ level: "behind", label: "遅延" });
+  });
+
+  it("計測不能（null）は灰「—」", () => {
+    expect(classifySpi(null)).toEqual({ level: "unknown", label: "—" });
   });
 });
