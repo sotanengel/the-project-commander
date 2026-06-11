@@ -1,4 +1,6 @@
 import {
+  type BaselineTask,
+  CycleError,
   type Dependency,
   type ExportBundle,
   ExportBundleSchema,
@@ -7,13 +9,32 @@ import {
   type Risk,
   type Stakeholder,
   type Task,
+  topologicalSort,
+  validateWbs,
 } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
 
 /**
+ * インポート時のプロジェクト名を決定する。
+ * 既存プロジェクトと重複する場合は「<名前> (インポート)」、
+ * それも重複する場合は「<名前> (インポート 2)」… と連番を付与する。
+ */
+function resolveProjectName(db: Db, name: string): string {
+  const exists = (candidate: string): boolean =>
+    db.prepare("SELECT 1 FROM projects WHERE name = ?").get(candidate) !== undefined;
+  if (!exists(name)) return name;
+  let candidate = `${name} (インポート)`;
+  for (let n = 2; exists(candidate); n++) {
+    candidate = `${name} (インポート ${n})`;
+  }
+  return candidate;
+}
+
+/**
  * プロジェクト一式のエクスポート/インポート。
- * 暫定版（基盤2の最小実装）: バリデーション強化・テストはユニット6で拡充する。
+ * エクスポートは全エンティティ＋ベースラインを含むバンドルを返し、
+ * インポートはID再割当のうえ新規プロジェクトとして取り込む。
  */
 export default async function exportRoutes(app: FastifyInstance, { db }: { db: Db }) {
   app.get<{ Params: { id: string } }>("/api/projects/:id/export", async (req, reply) => {
@@ -51,7 +72,7 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
         projectId: row.projectId,
         label: row.label,
         createdAt: row.createdAt,
-        ...(JSON.parse(row.data) as { projectDuration: number; tasks: [] }),
+        ...(JSON.parse(row.data) as { projectDuration: number; tasks: BaselineTask[] }),
       })),
     };
     return bundle;
@@ -59,6 +80,40 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
 
   app.post("/api/projects/import", async (req, reply) => {
     const bundle = ExportBundleSchema.parse(req.body);
+
+    // WBS構造の検証（通常APIで作成できない不正状態の混入を防ぐ）。
+    // missingParentはルート扱いで取り込めるため許容する。
+    const wbsIssues = validateWbs(bundle.tasks).issues;
+    if (wbsIssues.some((i) => i.type === "duplicateId")) {
+      return reply.code(400).send({ error: "バンドル内のタスクIDが重複しています" });
+    }
+    if (wbsIssues.some((i) => i.type === "cycle")) {
+      return reply.code(400).send({ error: "バンドル内のタスクの親子関係が循環しています" });
+    }
+
+    // 取り込み対象の依存関係: 両端のタスクがバンドル内に存在するもののみ。
+    // 同一(predecessor, successor, type)の重複はUNIQUE制約違反になるためスキップする。
+    const bundleTaskIds = new Set(bundle.tasks.map((t) => t.id));
+    const seenDepKeys = new Set<string>();
+    const effectiveDeps = bundle.dependencies.filter((dep) => {
+      if (!bundleTaskIds.has(dep.predecessorId) || !bundleTaskIds.has(dep.successorId)) {
+        return false;
+      }
+      const key = `${dep.predecessorId}>${dep.successorId}:${dep.type}`;
+      if (seenDepKeys.has(key)) return false;
+      seenDepKeys.add(key);
+      return true;
+    });
+    try {
+      // 依存関係の循環（自己依存含む）を検出する。通常APIのassertNoCycleと同等の保証。
+      topologicalSort(bundle.tasks, effectiveDeps);
+    } catch (error) {
+      if (error instanceof CycleError) {
+        return reply.code(400).send({ error: "バンドル内の依存関係が循環しています" });
+      }
+      throw error;
+    }
+
     const newProjectId = newId();
     const idMap = new Map<string, string>();
     for (const task of bundle.tasks) {
@@ -70,7 +125,7 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
         "INSERT INTO projects (id, name, description, startDate, createdAt) VALUES (?, ?, ?, ?, ?)",
       ).run(
         newProjectId,
-        bundle.project.name,
+        resolveProjectName(db, bundle.project.name),
         bundle.project.description,
         bundle.project.startDate,
         new Date().toISOString(),
@@ -91,7 +146,7 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
         `INSERT INTO dependencies (id, projectId, predecessorId, successorId, type, lagDays)
          VALUES (?, ?, ?, ?, ?, ?)`,
       );
-      for (const dep of bundle.dependencies) {
+      for (const dep of effectiveDeps) {
         const pred = idMap.get(dep.predecessorId);
         const succ = idMap.get(dep.successorId);
         if (!pred || !succ) continue;
@@ -131,6 +186,23 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
           s.influence,
           s.interest,
           s.note,
+        );
+      }
+      const insertBaseline = db.prepare(
+        "INSERT INTO baselines (id, projectId, label, createdAt, data) VALUES (?, ?, ?, ?, ?)",
+      );
+      for (const b of bundle.baselines) {
+        // スナップショットのtaskIdを新IDへ再割当。対応タスクが無い行は元のまま保持する。
+        const tasks: BaselineTask[] = b.tasks.map((t) => ({
+          ...t,
+          taskId: idMap.get(t.taskId) ?? t.taskId,
+        }));
+        insertBaseline.run(
+          newId(),
+          newProjectId,
+          b.label,
+          b.createdAt,
+          JSON.stringify({ projectDuration: b.projectDuration, tasks }),
         );
       }
     });
