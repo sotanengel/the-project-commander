@@ -38,7 +38,7 @@ export function buildPrompt(plan: ProjectPlan, purpose: PromptPurpose): string {
         progress: t.progress,
       })),
       dependencies: plan.dependencies,
-      risks: plan.milestones,
+      milestones: plan.milestones,
     },
     null,
     2,
@@ -50,7 +50,8 @@ export function buildPrompt(plan: ProjectPlan, purpose: PromptPurpose): string {
     "【現在のプロジェクトJSON】",
     projectJson,
     "",
-    "【出力形式】次のJSONスキーマのみを返してください（説明文は不要）:",
+    "【出力形式】次のスキーマに従ったJSONオブジェクトを1つだけ返してください。",
+    "説明文・前置き・コードフェンス（```）は不要です。",
     SCHEMAS[purpose],
   ].join("\n");
 }
