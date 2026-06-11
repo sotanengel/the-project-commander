@@ -1,0 +1,88 @@
+/* ガント: ベースライン表示・進捗塗り・差異表示のスタイル */
+
+.gantt-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gantt-header h2 {
+  margin: 0;
+}
+
+.gantt-duration-variance {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.gantt-variance-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.gantt-variance-badge.late {
+  background: #fee2e2;
+  color: var(--color-critical);
+}
+
+.gantt-variance-badge.early {
+  background: #dcfce7;
+  color: var(--color-success);
+}
+
+.gantt-baseline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.gantt-baseline-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+/* SVG: 行背景（未定義だと黒塗りになるため透明に） */
+.gantt-row-bg {
+  fill: transparent;
+}
+
+/* SVG: 進捗塗り（バー内の濃色部分） */
+.gantt-progress-fill {
+  fill: #2563eb;
+}
+
+.gantt-progress-fill.critical {
+  fill: var(--color-critical);
+}
+
+/* SVG: ベースラインバー（現行バーの下の細い灰色バー） */
+.gantt-baseline-bar {
+  fill: #9ca3af;
+  stroke: #6b7280;
+  stroke-width: 0.5;
+}
+
+/* SVG: 行末の差異テキスト */
+.gantt-variance {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gantt-variance.late {
+  fill: var(--color-critical);
+}
+
+.gantt-variance.early {
+  fill: var(--color-success);
+}
+
+.gantt-variance.zero {
+  fill: var(--color-text-muted);
+}

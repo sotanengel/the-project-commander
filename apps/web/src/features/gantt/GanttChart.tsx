@@ -1,10 +1,17 @@
-import type { Milestone, ProjectPlan } from "@tpc/shared";
+import type { Baseline, Milestone, ProjectPlan } from "@tpc/shared";
+import {
+  baselineChartDayCount,
+  baselineTaskMap,
+  formatVariance,
+  taskFinishVariance,
+} from "./baselineModel.js";
 import {
   BAR_HEIGHT,
   DAY_WIDTH,
   HEADER_HEIGHT,
   ROW_HEIGHT,
   SUMMARY_BAR_HEIGHT,
+  addDays,
   barGeometry,
   buildDayCells,
   buildGanttRows,
@@ -13,26 +20,36 @@ import {
   leafTooltip,
   localToday,
   milestoneX,
+  progressFillWidth,
   summaryTooltip,
   todayLineX,
 } from "./ganttModel.js";
 
+/** ベースラインバーの高さ（現行バーのすぐ下に細く描く） */
+const BASELINE_BAR_HEIGHT = 5;
+/** 行末の差異表示用の余白幅 */
+const VARIANCE_COL_WIDTH = 56;
+
 interface Props {
   plan: ProjectPlan;
+  /** 表示中のスケジュールベースライン（未選択なら null） */
+  baseline?: Baseline | null;
 }
 
-export default function GanttChart({ plan }: Props) {
-  const totalDays = chartDayCount(plan);
+export default function GanttChart({ plan, baseline = null }: Props) {
+  const totalDays = baselineChartDayCount(chartDayCount(plan), baseline);
   const cells = buildDayCells(plan.project.startDate, totalDays);
   const months = buildMonthSegments(cells);
   const rows = buildGanttRows(plan);
   const chartWidth = totalDays * DAY_WIDTH;
   const chartHeight = HEADER_HEIGHT + rows.length * ROW_HEIGHT;
   const todayX = todayLineX(plan.project.startDate, totalDays, localToday());
+  const blTasks = baseline ? baselineTaskMap(baseline) : null;
+  const svgWidth = chartWidth + 200 + (baseline ? VARIANCE_COL_WIDTH : 0);
 
   return (
     <div className="gantt-scroll">
-      <svg width={chartWidth + 200} height={chartHeight} className="gantt-chart" role="img">
+      <svg width={svgWidth} height={chartHeight} className="gantt-chart" role="img">
         <title>プロジェクトガントチャート</title>
         <g transform="translate(200,0)">
           {months.map((m) => (
@@ -60,25 +77,87 @@ export default function GanttChart({ plan }: Props) {
           ))}
           {rows.map((row, i) => {
             const y = HEADER_HEIGHT + i * ROW_HEIGHT;
+            const blTask = blTasks?.get(row.task.id);
             return (
               <g key={row.task.id} transform={`translate(0,${y})`}>
                 <rect width={chartWidth} height={ROW_HEIGHT} className="gantt-row-bg" />
                 {row.kind === "leaf" && row.schedule && (
                   <g>
                     {(() => {
-                      const g = barGeometry(row.schedule.earlyStart, row.schedule.earlyFinish);
+                      const schedule = row.schedule;
+                      const g = barGeometry(schedule.earlyStart, schedule.earlyFinish);
+                      const barY = (ROW_HEIGHT - BAR_HEIGHT) / 2;
+                      const fillWidth = progressFillWidth(
+                        schedule.earlyStart,
+                        schedule.earlyFinish,
+                        row.task.progress,
+                      );
+                      const blGeometry = blTask
+                        ? barGeometry(blTask.earlyStart, blTask.earlyFinish)
+                        : null;
+                      const variance = blTask
+                        ? formatVariance(
+                            taskFinishVariance(schedule.earlyFinish, blTask.earlyFinish),
+                          )
+                        : null;
                       return (
-                        <rect
-                          x={g.x}
-                          y={(ROW_HEIGHT - BAR_HEIGHT) / 2}
-                          width={g.width}
-                          height={BAR_HEIGHT}
-                          className={row.schedule.isCritical ? "gantt-bar critical" : "gantt-bar"}
-                        >
-                          <title>
-                            {leafTooltip(row.task, row.schedule, plan.project.startDate)}
-                          </title>
-                        </rect>
+                        <g>
+                          <rect
+                            x={g.x}
+                            y={barY}
+                            width={g.width}
+                            height={BAR_HEIGHT}
+                            className={schedule.isCritical ? "gantt-bar critical" : "gantt-bar"}
+                          >
+                            <title>{leafTooltip(row.task, schedule, plan.project.startDate)}</title>
+                          </rect>
+                          {fillWidth > 0 && (
+                            <rect
+                              x={g.x}
+                              y={barY}
+                              width={fillWidth}
+                              height={BAR_HEIGHT}
+                              pointerEvents="none"
+                              className={
+                                schedule.isCritical
+                                  ? "gantt-progress-fill critical"
+                                  : "gantt-progress-fill"
+                              }
+                            />
+                          )}
+                          {blTask && blGeometry && (
+                            <rect
+                              x={blGeometry.x}
+                              y={barY + BAR_HEIGHT + 1}
+                              width={blGeometry.width}
+                              height={BASELINE_BAR_HEIGHT}
+                              className="gantt-baseline-bar"
+                            >
+                              <title>
+                                {[
+                                  `ベースライン: ${row.task.name}`,
+                                  `期間: ${addDays(plan.project.startDate, blTask.earlyStart)} 〜 ${addDays(
+                                    plan.project.startDate,
+                                    Math.max(blTask.earlyFinish - 1, blTask.earlyStart),
+                                  )} (${blTask.durationDays}日)`,
+                                ].join("\n")}
+                              </title>
+                            </rect>
+                          )}
+                          {variance && (
+                            <text
+                              x={
+                                Math.max(schedule.earlyFinish, blTask ? blTask.earlyFinish : 0) *
+                                  DAY_WIDTH +
+                                8
+                              }
+                              y={ROW_HEIGHT / 2 + 4}
+                              className={`gantt-variance ${variance.tone}`}
+                            >
+                              {variance.text}
+                            </text>
+                          )}
+                        </g>
                       );
                     })()}
                   </g>
