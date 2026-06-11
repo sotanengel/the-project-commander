@@ -3,13 +3,16 @@ import type { Task } from "../types.js";
 import {
   type WbsMoveResult,
   buildWbsTree,
+  countDescendants,
   flattenWbsTree,
   indentTask,
+  insertSiblingPlan,
   moveTaskDown,
   moveTaskUp,
   normalizeSortOrders,
   outdentTask,
   reparentTask,
+  validateTaskParent,
   validateWbs,
 } from "./index.js";
 
@@ -168,6 +171,27 @@ describe("validateWbs", () => {
     const result = validateWbs([task("a", "b"), task("b", "a"), task("ok", null)]);
     const cycleIds = result.issues.filter((i) => i.type === "cycle").map((i) => i.taskId);
     expect(cycleIds).not.toContain("ok");
+  });
+});
+
+describe("validateTaskParent", () => {
+  it("存在しない親は拒否する", () => {
+    const tasks = [task("a", null)];
+    expect(validateTaskParent(tasks, "p1", "a", "ghost")).toBe("親タスクが見つかりません");
+  });
+
+  it("自分自身を親に指定すると拒否する", () => {
+    const tasks = [task("a", null)];
+    expect(validateTaskParent(tasks, "p1", "a", "a")).toBe(
+      "親タスクに自分自身を指定すると循環参照になります",
+    );
+  });
+
+  it("循環参照になる親指定は拒否する", () => {
+    const tasks = [task("a", null), task("b", "a")];
+    expect(validateTaskParent(tasks, "p1", "a", "b")).toBe(
+      "親タスクの指定により循環参照が発生します",
+    );
   });
 });
 
@@ -385,5 +409,68 @@ describe("normalizeSortOrders", () => {
   it("すでに正規化済みなら空の更新を返す", () => {
     const tasks = [task("a", null, 1, 0, 0), task("b", null, 1, 0, 1)];
     expect(normalizeSortOrders(tasks)).toEqual([]);
+  });
+});
+
+describe("insertSiblingPlan", () => {
+  const fixture = (): Task[] => [
+    task("a", null, 1, 0, 0),
+    task("b", null, 1, 0, 1),
+    task("c", null, 1, 0, 2),
+    task("b1", "b", 1, 0, 0),
+    task("b2", "b", 1, 0, 1),
+  ];
+
+  it("対象の直下に挿入する位置を返し、後続の兄弟を繰り下げる", () => {
+    const plan = insertSiblingPlan(fixture(), "a");
+    expect(plan).not.toBeNull();
+    expect(plan?.parentId).toBeNull();
+    expect(plan?.sortOrder).toBe(1);
+    expect(plan?.bumps).toEqual(
+      expect.arrayContaining([
+        { taskId: "b", changes: { sortOrder: 2 } },
+        { taskId: "c", changes: { sortOrder: 3 } },
+      ]),
+    );
+  });
+
+  it("末尾タスクの直下なら繰り下げは不要", () => {
+    expect(insertSiblingPlan(fixture(), "c")).toEqual({
+      parentId: null,
+      sortOrder: 3,
+      bumps: [],
+    });
+  });
+
+  it("子階層でも同様に動く", () => {
+    expect(insertSiblingPlan(fixture(), "b1")).toEqual({
+      parentId: "b",
+      sortOrder: 1,
+      bumps: [{ taskId: "b2", changes: { sortOrder: 2 } }],
+    });
+  });
+
+  it("存在しないタスクはnull", () => {
+    expect(insertSiblingPlan(fixture(), "zzz")).toBeNull();
+  });
+});
+
+describe("countDescendants", () => {
+  const fixture = (): Task[] => [
+    task("a", null, 1, 0, 0),
+    task("b", null, 1, 0, 1),
+    task("c", null, 1, 0, 2),
+    task("b1", "b", 1, 0, 0),
+    task("b2", "b", 1, 0, 1),
+  ];
+
+  it("子孫の数を数える", () => {
+    expect(countDescendants(fixture(), "b")).toBe(2);
+    expect(countDescendants(fixture(), "a")).toBe(0);
+  });
+
+  it("孫も数える", () => {
+    const tasks = [...fixture(), task("b1x", "b1", 1, 0, 0)];
+    expect(countDescendants(tasks, "b")).toBe(3);
   });
 });

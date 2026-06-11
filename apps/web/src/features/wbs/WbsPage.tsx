@@ -1,16 +1,15 @@
-import { type WbsNode, buildWbsTree } from "@tpc/shared";
+import { type WbsNode, buildWbsTree, countDescendants, insertSiblingPlan } from "@tpc/shared";
 import type { Task } from "@tpc/shared";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import {
   type TaskUpdatePlan,
-  countDescendants,
-  indentTask,
-  insertSiblingPlan,
-  moveTask,
-  outdentTask,
-} from "./wbsOps.js";
+  adaptSiblingInsertPlan,
+  indentTaskPlans,
+  moveTaskPlans,
+  outdentTaskPlans,
+} from "./wbsAdapter.js";
 
 async function applyUpdates(updates: TaskUpdatePlan[]) {
   for (const u of updates) {
@@ -50,7 +49,7 @@ function WbsRow({
   };
 
   const addSibling = async () => {
-    const plan = insertSiblingPlan(tasks, node.task.id);
+    const plan = adaptSiblingInsertPlan(insertSiblingPlan(tasks, node.task.id));
     if (!plan) return;
     await applyUpdates(plan.bumps);
     await api.createTask(node.task.projectId, {
@@ -122,28 +121,28 @@ function WbsRow({
               <button
                 type="button"
                 title="上へ"
-                onClick={() => run(() => moveTask(tasks, node.task.id, "up"))}
+                onClick={() => run(() => moveTaskPlans(tasks, node.task.id, "up"))}
               >
                 ↑
               </button>
               <button
                 type="button"
                 title="下へ"
-                onClick={() => run(() => moveTask(tasks, node.task.id, "down"))}
+                onClick={() => run(() => moveTaskPlans(tasks, node.task.id, "down"))}
               >
                 ↓
               </button>
               <button
                 type="button"
                 title="インデント"
-                onClick={() => run(() => indentTask(tasks, node.task.id))}
+                onClick={() => run(() => indentTaskPlans(tasks, node.task.id))}
               >
                 →
               </button>
               <button
                 type="button"
                 title="アウトデント"
-                onClick={() => run(() => outdentTask(tasks, node.task.id))}
+                onClick={() => run(() => outdentTaskPlans(tasks, node.task.id))}
               >
                 ←
               </button>

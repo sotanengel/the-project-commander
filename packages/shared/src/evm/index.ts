@@ -1,3 +1,4 @@
+import { toDayMs } from "../dates/index.js";
 import type { ProjectPlan } from "../types.js";
 
 /** 簡易EVM（schedule-only、日数を価値単位とする出来高分析）の結果 */
@@ -19,25 +20,6 @@ export interface EvmResult {
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/** 日付（Date または YYYY-MM-DD 文字列）をローカル日付のUTC正午基準ミリ秒に正規化する */
-function toDayMs(value: Date | string, label: string): number {
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) {
-      throw new RangeError(`${label}が不正な日付です`);
-    }
-    return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
-  }
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!m) {
-    throw new RangeError(`${label}はYYYY-MM-DD形式で指定してください: ${value}`);
-  }
-  const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  if (Number.isNaN(ms)) {
-    throw new RangeError(`${label}が不正な日付です: ${value}`);
-  }
-  return ms;
-}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));

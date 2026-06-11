@@ -1,6 +1,7 @@
 import type {
   Baseline,
   BaselineCreateInput,
+  BulkTaskInput,
   Dependency,
   DependencyCreateInput,
   ExportBundle,
@@ -61,15 +62,7 @@ const put = <T>(path: string, body: unknown) =>
   request<T>(path, { method: "PUT", body: JSON.stringify(body) });
 const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
 
-/** AI取り込み・一括登録用の階層タスク入力 */
-export interface BulkTaskInput {
-  name: string;
-  description?: string;
-  durationDays?: number;
-  progress?: number;
-  assignee?: string;
-  children?: BulkTaskInput[];
-}
+export type { BulkTaskInput };
 
 export const api = {
   // プロジェクト

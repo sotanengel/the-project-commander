@@ -1,4 +1,5 @@
 import type { Project } from "@tpc/shared";
+import { todayLocal } from "@tpc/shared";
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../../api/client.js";
 import ProjectCard from "./ProjectCard.js";
@@ -10,7 +11,7 @@ import "./dashboard.css";
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(todayLocal());
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 

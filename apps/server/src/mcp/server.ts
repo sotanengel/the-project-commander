@@ -22,11 +22,12 @@ import {
   type Task,
   TaskSchema,
   TaskUpdateSchema,
-  computeCpm,
   topologicalSort,
 } from "@tpc/shared";
 import { z } from "zod";
 import { type Db, newId } from "../db.js";
+import { loadProjectPlan, projectExists } from "../repositories/project.js";
+import { BulkTaskSchema, createTaskRepository, getTask } from "../repositories/task.js";
 
 function jsonContent(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
@@ -36,95 +37,18 @@ function toolError(message: string): never {
   throw new Error(message);
 }
 
-interface BulkTaskInput {
-  name: string;
-  description?: string;
-  durationDays?: number;
-  progress?: number;
-  assignee?: string;
-  children?: BulkTaskInput[];
-}
-
-const BulkTaskSchema: z.ZodType<BulkTaskInput> = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  durationDays: z.number().nonnegative().optional(),
-  progress: z.number().min(0).max(100).optional(),
-  assignee: z.string().optional(),
-  children: z.lazy(() => z.array(BulkTaskSchema)).optional(),
-});
-
 export function createMcpServer(db: Db): McpServer {
   const server = new McpServer({ name: "the-project-commander", version: "0.1.0" });
+  const { insertTaskTree } = createTaskRepository(db);
 
-  function projectExists(projectId: string): boolean {
-    return db.prepare("SELECT 1 FROM projects WHERE id = ?").get(projectId) !== undefined;
+  function ensureProject(projectId: string): void {
+    if (!projectExists(db, projectId)) toolError("プロジェクトが見つかりません");
   }
 
-  function getTask(id: string): Task | undefined {
-    return db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as Task | undefined;
-  }
-
-  function loadPlan(projectId: string): ProjectPlan {
-    const projectRow = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId);
-    if (!projectRow) toolError("プロジェクトが見つかりません");
-    const project = ProjectSchema.parse(projectRow);
-    const tasks = db
-      .prepare("SELECT * FROM tasks WHERE projectId = ? ORDER BY sortOrder")
-      .all(projectId) as Task[];
-    const dependencies = db
-      .prepare("SELECT * FROM dependencies WHERE projectId = ?")
-      .all(projectId) as Dependency[];
-    const milestones = db
-      .prepare("SELECT * FROM milestones WHERE projectId = ? ORDER BY dueDate")
-      .all(projectId) as Milestone[];
-    return {
-      project,
-      tasks,
-      dependencies,
-      milestones,
-      cpm: computeCpm(tasks, dependencies),
-    };
-  }
-
-  function nextSortOrder(projectId: string, parentId: string | null): number {
-    const row = db
-      .prepare(
-        "SELECT COALESCE(MAX(sortOrder), -1) + 1 AS next FROM tasks WHERE projectId = ? AND parentId IS ?",
-      )
-      .get(projectId, parentId) as { next: number };
-    return row.next;
-  }
-
-  const insertTask = db.prepare(
-    `INSERT INTO tasks (id, projectId, parentId, name, description, durationDays, progress, assignee, sortOrder)
-     VALUES (@id, @projectId, @parentId, @name, @description, @durationDays, @progress, @assignee, @sortOrder)`,
-  );
-
-  function insertTaskTree(
-    projectId: string,
-    items: BulkTaskInput[],
-    parentId: string | null,
-  ): Task[] {
-    const created: Task[] = [];
-    const walk = (nodes: BulkTaskInput[], parent: string | null) => {
-      let order = nextSortOrder(projectId, parent);
-      for (const node of nodes) {
-        const { children, ...fields } = node;
-        const task = TaskSchema.parse({
-          ...fields,
-          id: newId(),
-          projectId,
-          parentId: parent,
-          sortOrder: order++,
-        });
-        insertTask.run(task);
-        created.push(task);
-        if (children && children.length > 0) walk(children, task.id);
-      }
-    };
-    walk(items, parentId);
-    return created;
+  function requirePlan(projectId: string): ProjectPlan {
+    const plan = loadProjectPlan(db, projectId);
+    if (!plan) toolError("プロジェクトが見つかりません");
+    return plan;
   }
 
   server.registerTool(
@@ -173,8 +97,8 @@ export function createMcpServer(db: Db): McpServer {
       inputSchema: { projectId: z.string() },
     },
     async ({ projectId }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
-      return jsonContent(loadPlan(projectId));
+      ensureProject(projectId);
+      return jsonContent(requirePlan(projectId));
     },
   );
 
@@ -188,7 +112,7 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ projectId, tasks }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      ensureProject(projectId);
       const created = db.transaction(() => insertTaskTree(projectId, tasks, null))();
       return jsonContent(created);
     },
@@ -210,7 +134,7 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ taskId, ...fields }) => {
-      const existing = getTask(taskId);
+      const existing = getTask(db, taskId);
       if (!existing) toolError("タスクが見つかりません");
       const input = TaskUpdateSchema.parse(fields);
       const updated = TaskSchema.parse({ ...existing, ...input });
@@ -230,7 +154,7 @@ export function createMcpServer(db: Db): McpServer {
       inputSchema: { taskId: z.string() },
     },
     async ({ taskId }) => {
-      const existing = getTask(taskId);
+      const existing = getTask(db, taskId);
       if (!existing) toolError("タスクが見つかりません");
       db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
       return jsonContent({ ok: true });
@@ -254,7 +178,7 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ projectId, dependencies }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      ensureProject(projectId);
 
       const result = db.transaction(() => {
         const created: Dependency[] = [];
@@ -325,8 +249,8 @@ export function createMcpServer(db: Db): McpServer {
       inputSchema: { projectId: z.string() },
     },
     async ({ projectId }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
-      const plan = loadPlan(projectId);
+      ensureProject(projectId);
+      const plan = requirePlan(projectId);
       const taskById = new Map(plan.tasks.map((t) => [t.id, t]));
       const scheduledById = new Map(plan.cpm.tasks.map((s) => [s.taskId, s]));
       const tasks = plan.tasks
@@ -375,7 +299,7 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ projectId, risks }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      ensureProject(projectId);
       const insert = db.prepare(
         `INSERT INTO risks (id, projectId, title, probability, impact, response, status)
          VALUES (@id, @projectId, @title, @probability, @impact, @response, @status)`,
@@ -408,7 +332,7 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ projectId, milestones }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      ensureProject(projectId);
       const created = db.transaction(() => {
         const insert = db.prepare(
           "INSERT INTO milestones (id, projectId, name, dueDate, status) VALUES (@id, @projectId, @name, @dueDate, @status)",
@@ -445,7 +369,7 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ projectId, stakeholders }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      ensureProject(projectId);
       const created = db.transaction(() => {
         const insert = db.prepare(
           `INSERT INTO stakeholders (id, projectId, name, role, influence, interest, note)
@@ -472,7 +396,7 @@ export function createMcpServer(db: Db): McpServer {
       inputSchema: { projectId: z.string() },
     },
     async ({ projectId }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
+      ensureProject(projectId);
       const rows = db.prepare("SELECT * FROM risks WHERE projectId = ?").all(projectId) as Risk[];
       return jsonContent(rows.map((r) => RiskSchema.parse(r)));
     },
@@ -489,14 +413,10 @@ export function createMcpServer(db: Db): McpServer {
       },
     },
     async ({ projectId, label }) => {
-      if (!projectExists(projectId)) toolError("プロジェクトが見つかりません");
-      const tasks = db.prepare("SELECT * FROM tasks WHERE projectId = ?").all(projectId) as Task[];
-      const dependencies = db
-        .prepare("SELECT * FROM dependencies WHERE projectId = ?")
-        .all(projectId) as Dependency[];
-      const cpm = computeCpm(tasks, dependencies);
-      const taskById = new Map(tasks.map((t) => [t.id, t]));
-      const snapshot: BaselineTask[] = cpm.tasks.map((s) => ({
+      ensureProject(projectId);
+      const plan = requirePlan(projectId);
+      const taskById = new Map(plan.tasks.map((t) => [t.id, t]));
+      const snapshot: BaselineTask[] = plan.cpm.tasks.map((s) => ({
         taskId: s.taskId,
         name: taskById.get(s.taskId)?.name ?? "",
         durationDays: taskById.get(s.taskId)?.durationDays ?? 0,
@@ -508,7 +428,7 @@ export function createMcpServer(db: Db): McpServer {
         projectId,
         label: label ?? "",
         createdAt: new Date().toISOString(),
-        projectDuration: cpm.projectDuration,
+        projectDuration: plan.cpm.projectDuration,
         tasks: snapshot,
       };
       db.prepare(

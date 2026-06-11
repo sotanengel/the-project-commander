@@ -54,6 +54,27 @@ export type TaskCreateInput = z.infer<typeof TaskCreateSchema>;
 export const TaskUpdateSchema = TaskCreateSchema.partial();
 export type TaskUpdateInput = z.infer<typeof TaskUpdateSchema>;
 
+/** 階層構造のままタスクを一括登録するための入力（AI取り込み・MCP・bulk APIで使用） */
+export interface BulkTaskInput {
+  name: string;
+  description?: string;
+  durationDays?: number;
+  progress?: number;
+  assignee?: string;
+  children?: BulkTaskInput[];
+}
+
+export const BulkTaskSchema: z.ZodType<BulkTaskInput> = z.object({
+  name: z.string().min(1, "タスク名は必須です"),
+  description: z.string().optional(),
+  durationDays: z.number().nonnegative().optional(),
+  progress: z.number().min(0).max(100).optional(),
+  assignee: z.string().optional(),
+  children: z.lazy(() => z.array(BulkTaskSchema)).optional(),
+});
+
+export const BulkBodySchema = z.object({ tasks: z.array(BulkTaskSchema) });
+
 // ---- 依存関係（PMBOK: FS/SS/FF/SF + リード(負のlag)/ラグ） ----
 export const DependencyTypeSchema = z.enum(["FS", "SS", "FF", "SF"]);
 export type DependencyType = z.infer<typeof DependencyTypeSchema>;
