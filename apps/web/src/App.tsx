@@ -5,6 +5,7 @@ import { api } from "./api/client.js";
 import AiAssistPage from "./features/ai-assist/AiAssistPage.js";
 import DashboardPage from "./features/dashboard/DashboardPage.js";
 import GanttPage from "./features/gantt/GanttPage.js";
+import GuidePage from "./features/guide/GuidePage.js";
 import NetworkPage from "./features/network/NetworkPage.js";
 import RegistersPage from "./features/registers/RegistersPage.js";
 import WbsPage from "./features/wbs/WbsPage.js";
@@ -12,7 +13,8 @@ import WbsPage from "./features/wbs/WbsPage.js";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<DashboardPage />} />
+      <Route path="/" element={<DashboardLayout />} />
+      <Route path="/guide" element={<GuidePage />} />
       <Route path="/projects/:projectId" element={<ProjectLayout />}>
         <Route index element={<WbsPage />} />
         <Route path="network" element={<NetworkPage />} />
@@ -21,6 +23,26 @@ export default function App() {
         <Route path="ai" element={<AiAssistPage />} />
       </Route>
     </Routes>
+  );
+}
+
+/**
+ * ダッシュボード用レイアウト。
+ * ヘッダーからガイドページへ常時アクセスできるようにする。
+ */
+function DashboardLayout() {
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <Link to="/" className="app-brand">
+          ⌘ The Project Commander
+        </Link>
+        <nav className="tabs">
+          <NavLink to="/guide">ガイド</NavLink>
+        </nav>
+      </header>
+      <DashboardPage />
+    </div>
   );
 }
 
@@ -61,6 +83,7 @@ function ProjectLayout() {
           <NavLink to="gantt">ガント</NavLink>
           <NavLink to="registers">リスク / 関係者</NavLink>
           <NavLink to="ai">AIアシスト</NavLink>
+          <NavLink to="/guide">ガイド</NavLink>
         </nav>
       </header>
       <main className="container">
