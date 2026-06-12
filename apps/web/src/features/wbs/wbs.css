@@ -1,0 +1,64 @@
+/* WBSページ固有スタイル */
+
+/* ヘルプ・凡例（折りたたみ） */
+.wbs-help-area {
+  margin-bottom: 12px;
+}
+
+.wbs-help {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.wbs-help summary {
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.wbs-help p,
+.wbs-help ul {
+  margin: 6px 0 4px;
+}
+
+.wbs-shortcut-list {
+  padding-left: 20px;
+  list-style: none;
+}
+
+.wbs-shortcut-list li {
+  margin-bottom: 2px;
+}
+
+.wbs-help kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--color-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--color-bg);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ワークパッケージバッジ */
+.wbs-wp-badge {
+  margin-left: 6px;
+  font-size: 10px;
+}
+
+/* インラインバリデーションのエラー表示 */
+.wbs-field-error {
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+.wbs-row-error td {
+  font-size: 12px;
+  padding-top: 0;
+}
+
+/* 行フォーカス時の可視化（キーボード操作用） */
+tr.wbs-row:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
