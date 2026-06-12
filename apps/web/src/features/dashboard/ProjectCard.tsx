@@ -3,7 +3,14 @@ import type { EvmResult, Project } from "@tpc/shared";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client.js";
-import { type ProjectSummary, classifySpi, formatPercent, summarizePlan } from "./summary.js";
+import {
+  type ProjectSummary,
+  SPI_HELP_TEXT,
+  classifySpi,
+  formatPercent,
+  spiTooltip,
+  summarizePlan,
+} from "./summary.js";
 
 type SummaryState =
   | { status: "loading" }
@@ -111,22 +118,35 @@ function SummaryBody({ summary, evm }: { summary: ProjectSummary; evm: EvmResult
 
 /** 簡易EVM行: 予定進捗(PV/BAC)・実績(EV/BAC)とSPIバッジ。BAC=0なら非表示。 */
 function EvmRow({ evm }: { evm: EvmResult }) {
+  const [showHelp, setShowHelp] = useState(false);
   if (evm.bac <= 0) return null;
   const plannedPercent = (evm.pv / evm.bac) * 100;
   const actualPercent = (evm.ev / evm.bac) * 100;
   const badge = classifySpi(evm.spi);
+  const tooltip = spiTooltip(evm.spi);
   return (
-    <div className="evm-row">
-      <span className="muted">
-        予定進捗 {formatPercent(plannedPercent)} / 実績 {formatPercent(actualPercent)}
-      </span>
-      <span className={`badge spi-badge spi-${badge.level}`} title={spiTitle(evm.spi)}>
-        {badge.label}
-      </span>
-    </div>
+    <>
+      <div className="evm-row">
+        <span className="muted">
+          予定進捗 {formatPercent(plannedPercent)} / 実績 {formatPercent(actualPercent)}
+        </span>
+        <span className="evm-spi">
+          <span className={`badge spi-badge spi-${badge.level}`} title={tooltip}>
+            {badge.label}
+          </span>
+          <button
+            type="button"
+            className="spi-help-button"
+            title={tooltip}
+            aria-label="SPIバッジの意味を表示"
+            aria-expanded={showHelp}
+            onClick={() => setShowHelp((v) => !v)}
+          >
+            ？
+          </button>
+        </span>
+      </div>
+      {showHelp && <p className="muted spi-help-note">{SPI_HELP_TEXT}</p>}
+    </>
   );
-}
-
-function spiTitle(spi: number | null): string {
-  return spi === null ? "SPI 計測不能（計画価値が0）" : `SPI ${spi.toFixed(2)}`;
 }

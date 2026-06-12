@@ -65,3 +65,19 @@ export function classifySpi(spi: number | null): SpiBadge {
   if (spi >= 0.85) return { level: "warning", label: "やや遅延" };
   return { level: "behind", label: "遅延" };
 }
+
+/**
+ * SPIバッジの平易な説明文。EVMを知らない初学者向けに、
+ * 計算式と3段階の目安を一般知識に基づく自前の言葉で示す。
+ */
+export const SPI_HELP_TEXT =
+  "SPI（スケジュール効率指数）= 実績進捗 ÷ 予定進捗。" +
+  "1.0以上 = 順調（予定どおり以上）、0.85〜1.0 = やや遅延、0.85未満 = 遅延の目安です。";
+
+/** SPIバッジのツールチップ文（値 + 平易な説明）を組み立てる純粋関数 */
+export function spiTooltip(spi: number | null): string {
+  if (spi === null) {
+    return `SPI 計測不能（予定進捗が0のため割り算できません）。${SPI_HELP_TEXT}`;
+  }
+  return `SPI ${spi.toFixed(2)}。${SPI_HELP_TEXT}`;
+}

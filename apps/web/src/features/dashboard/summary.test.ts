@@ -1,6 +1,6 @@
 import type { CpmResult, Task } from "@tpc/shared";
 import { describe, expect, it } from "vitest";
-import { classifySpi, formatPercent, summarizePlan } from "./summary.js";
+import { SPI_HELP_TEXT, classifySpi, formatPercent, spiTooltip, summarizePlan } from "./summary.js";
 
 let seq = 0;
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -97,5 +97,30 @@ describe("classifySpi", () => {
 
   it("計測不能（null）は灰「—」", () => {
     expect(classifySpi(null)).toEqual({ level: "unknown", label: "—" });
+  });
+});
+
+describe("spiTooltip", () => {
+  it("SPI値を小数2桁で示し、平易な説明を含む", () => {
+    const text = spiTooltip(0.9);
+    expect(text).toContain("SPI 0.90");
+    expect(text).toContain("実績進捗 ÷ 予定進捗");
+  });
+
+  it("計測不能（null）は理由を説明する", () => {
+    const text = spiTooltip(null);
+    expect(text).toContain("計測不能");
+    expect(text).toContain("予定進捗が0");
+  });
+});
+
+describe("SPI_HELP_TEXT", () => {
+  it("計算式と3段階の目安を平易な日本語で説明している", () => {
+    expect(SPI_HELP_TEXT).toContain("実績進捗 ÷ 予定進捗");
+    expect(SPI_HELP_TEXT).toContain("1.0以上");
+    expect(SPI_HELP_TEXT).toContain("順調");
+    expect(SPI_HELP_TEXT).toContain("0.85");
+    expect(SPI_HELP_TEXT).toContain("やや遅延");
+    expect(SPI_HELP_TEXT).toContain("遅延");
   });
 });
