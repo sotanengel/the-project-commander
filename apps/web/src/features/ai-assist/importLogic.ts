@@ -3,6 +3,41 @@ import { z } from "zod";
 import type { BulkTaskInput } from "../../api/client.js";
 import type { PromptPurpose } from "./prompts.js";
 
+// ---- エラー ----
+
+/** 取り込み失敗の種類（UI側で平易な日本語に変換するための区分） */
+export type AiImportErrorKind =
+  | "empty"
+  | "no_json"
+  | "truncated"
+  | "parse_failed"
+  | "schema_mismatch";
+
+/**
+ * AI応答の解析・検証エラー。
+ * kind と不足項目（missing）を持ち、表示用メッセージへの変換は
+ * aiAssistModel.ts の formatImportError() が担う。
+ */
+export class AiImportError extends Error {
+  readonly kind: AiImportErrorKind;
+  /** スキーマ不一致時に特定できた不足項目のパス（例: "tasks.0.name"） */
+  readonly missing: string[];
+  /** スキーマ不一致時の詳細（型違いなど不足以外の内容） */
+  readonly details: string | undefined;
+
+  constructor(
+    kind: AiImportErrorKind,
+    message: string,
+    options: { missing?: string[]; details?: string } = {},
+  ) {
+    super(message);
+    this.name = "AiImportError";
+    this.kind = kind;
+    this.missing = options.missing ?? [];
+    this.details = options.details;
+  }
+}
+
 // ---- スキーマ ----
 
 const WbsImportSchema = z.object({
@@ -100,7 +135,7 @@ function scanForJsonObject(text: string): { value: unknown } | { parseError: str
 export function extractJson(text: string): unknown {
   const trimmed = text.trim();
   if (!trimmed) {
-    throw new Error("入力が空です。AIの応答を貼り付けてください。");
+    throw new AiImportError("empty", "入力が空です。AIの応答を貼り付けてください。");
   }
   // フェンス内のJSONを優先する
   const fencePattern = /```(?:json)?\s*\n?([\s\S]*?)```/gi;
@@ -111,16 +146,20 @@ export function extractJson(text: string): unknown {
     if (result && "value" in result) return result.value;
   }
   if (!trimmed.includes("{")) {
-    throw new Error(
+    throw new AiImportError(
+      "no_json",
       "JSONオブジェクトが見つかりません。「{」で始まるJSONを含むテキストを貼り付けてください。",
     );
   }
   const result = scanForJsonObject(trimmed);
   if (result === null) {
-    throw new Error("JSONが途中で終わっています。「}」が不足していないか確認してください。");
+    throw new AiImportError(
+      "truncated",
+      "JSONが途中で終わっています。「}」が不足していないか確認してください。",
+    );
   }
   if ("parseError" in result) {
-    throw new Error(`JSONの解析に失敗しました: ${result.parseError}`);
+    throw new AiImportError("parse_failed", `JSONの解析に失敗しました: ${result.parseError}`);
   }
   return result.value;
 }
@@ -132,15 +171,24 @@ export type ParsedImport =
   | { kind: "risks"; risks: RiskImportItem[] }
   | { kind: "dependencies"; dependencies: DependencyImportItem[] };
 
-function formatZodError(error: z.ZodError): string {
+function pathOf(issue: z.ZodIssue): string {
+  return issue.path.length > 0 ? issue.path.join(".") : "(ルート)";
+}
+
+/** ZodErrorを kind=schema_mismatch のAiImportError（不足項目・詳細付き）に変換する */
+function toSchemaMismatchError(error: z.ZodError): AiImportError {
+  // 「値がundefined」= 必須項目の不足として特定する（zod v3 の invalid_type）
+  const missing = error.issues
+    .filter((issue) => issue.code === "invalid_type" && issue.received === "undefined")
+    .map(pathOf);
   const details = error.issues
     .slice(0, 5)
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.join(".") : "(ルート)";
-      return `${path}: ${issue.message}`;
-    })
+    .map((issue) => `${pathOf(issue)}: ${issue.message}`)
     .join(" / ");
-  return `JSONの形式が正しくありません: ${details}`;
+  return new AiImportError("schema_mismatch", `JSONの形式が正しくありません: ${details}`, {
+    missing: [...new Set(missing)],
+    details,
+  });
 }
 
 /** AI応答テキストを抽出・検証し、目的に応じた取り込みデータに変換する */
@@ -159,7 +207,7 @@ export function parseAiResponse(text: string, purpose: PromptPurpose): ParsedImp
     return { kind: "dependencies", dependencies: data.dependencies };
   } catch (e) {
     if (e instanceof z.ZodError) {
-      throw new Error(formatZodError(e));
+      throw toSchemaMismatchError(e);
     }
     throw e;
   }
