@@ -5,6 +5,8 @@ import {
   MILESTONE_STATUS_LABELS,
   RISK_STATUS_LABELS,
   engagementCategory,
+  powerInterestGridRows,
+  riskMatrixRows,
   riskScore,
   scoreSeverity,
   sortRisksByScoreDesc,
@@ -84,6 +86,67 @@ describe("engagementCategory（PMBOK 権力・関心グリッド）", () => {
     expect(engagementCategory("low", "medium")).toBe("監視");
     expect(engagementCategory("medium", "low")).toBe("監視");
     expect(engagementCategory("medium", "medium")).toBe("監視");
+  });
+});
+
+describe("riskMatrixRows（3×3 確率×影響マトリクス凡例）", () => {
+  it("行=確率（高→低）、列=影響（低→高）の 3×3 を返す", () => {
+    const rows = riskMatrixRows();
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row).toHaveLength(3);
+    }
+    expect(rows.map((row) => row[0]?.probability)).toEqual(["high", "medium", "low"]);
+    expect(rows[0]?.map((cell) => cell.impact)).toEqual(["low", "medium", "high"]);
+  });
+
+  it("各セルのスコアは riskScore と一致する（1〜9）", () => {
+    const rows = riskMatrixRows();
+    for (const row of rows) {
+      for (const cell of row) {
+        expect(cell.score).toBe(riskScore(cell.probability, cell.impact));
+      }
+    }
+    // 角のセルを直接確認
+    expect(rows[0]?.[2]).toMatchObject({ probability: "high", impact: "high", score: 9 });
+    expect(rows[2]?.[0]).toMatchObject({ probability: "low", impact: "low", score: 1 });
+  });
+
+  it("各セルの深刻度は scoreSeverity と一致する（高×高=9 は high=赤）", () => {
+    const rows = riskMatrixRows();
+    for (const row of rows) {
+      for (const cell of row) {
+        expect(cell.severity).toBe(scoreSeverity(cell.score));
+      }
+    }
+    expect(rows[0]?.[2]?.severity).toBe("high");
+    expect(rows[1]?.[1]?.severity).toBe("medium");
+    expect(rows[2]?.[0]?.severity).toBe("low");
+  });
+});
+
+describe("powerInterestGridRows（2×2 権力・関心グリッド凡例）", () => {
+  it("行=影響力（高→低）、列=関心（低→高）の 2×2 を返す", () => {
+    const rows = powerInterestGridRows();
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toHaveLength(2);
+    }
+    expect(rows.map((row) => row[0]?.influence)).toEqual(["high", "low"]);
+    expect(rows[0]?.map((cell) => cell.interest)).toEqual(["low", "high"]);
+  });
+
+  it("各セルのラベルは engagementCategory と一致する", () => {
+    const rows = powerInterestGridRows();
+    for (const row of rows) {
+      for (const cell of row) {
+        expect(cell.label).toBe(engagementCategory(cell.influence, cell.interest));
+      }
+    }
+    expect(rows[0]?.[1]?.label).toBe("重点的に管理");
+    expect(rows[0]?.[0]?.label).toBe("満足を維持");
+    expect(rows[1]?.[1]?.label).toBe("情報を提供");
+    expect(rows[1]?.[0]?.label).toBe("監視");
   });
 });
 
