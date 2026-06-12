@@ -23,6 +23,20 @@
   margin-top: 12px;
 }
 
+/* タイプ選択ガイド（選択中の依存タイプの説明を受動表示） */
+.dependency-type-guide {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.dependency-type-guide-type {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 /* エッジラベル（SS+2 / FS-1 など） */
 .network-edge-label {
   font-size: 11px;

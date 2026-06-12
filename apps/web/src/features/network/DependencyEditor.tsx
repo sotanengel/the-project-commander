@@ -1,7 +1,13 @@
 import type { DependencyType, ProjectPlan, Task } from "@tpc/shared";
 import { type FormEvent, useState } from "react";
 import { api } from "../../api/client.js";
-import { DEPENDENCY_TYPE_OPTIONS } from "./networkModel.js";
+import {
+  DEPENDENCY_TYPE_OPTIONS,
+  cycleDependencyMessage,
+  duplicateDependencyMessage,
+  findCyclePath,
+  findDuplicateDependency,
+} from "./networkModel.js";
 
 interface Props {
   projectId: string;
@@ -39,6 +45,23 @@ export default function DependencyEditor({ projectId, plan, leaves, onChanged }:
       setFormError("ラグ日数は数値で入力してください");
       return;
     }
+    // 送信前チェック1: 同じ（先行,後続）ペアの重複依存をブロックする
+    if (findDuplicateDependency(plan.dependencies, predecessorId, successorId)) {
+      setFormError(duplicateDependencyMessage(taskName(predecessorId), taskName(successorId)));
+      return;
+    }
+    // 送信前チェック2: 既存依存＋新規エッジで循環になるかを判定してブロックする
+    const cyclePath = findCyclePath(plan.dependencies, predecessorId, successorId);
+    if (cyclePath) {
+      setFormError(
+        cycleDependencyMessage(
+          taskName(predecessorId),
+          taskName(successorId),
+          cyclePath.map(taskName),
+        ),
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       await api.createDependency(projectId, { predecessorId, successorId, type, lagDays: lag });
@@ -49,8 +72,15 @@ export default function DependencyEditor({ projectId, plan, leaves, onChanged }:
       setLagDays("0");
       onChanged();
     } catch (err) {
-      // 409（循環）や400のAPI日本語メッセージをそのまま表示する
-      setFormError(err instanceof Error ? err.message : String(err));
+      // 400等のAPI日本語メッセージはそのまま表示する。
+      // 409（循環）は事前チェックを通過した場合のフォールバックとして、
+      // タスク名と解決ヒント入りのメッセージに置き換える
+      const message = err instanceof Error ? err.message : String(err);
+      setFormError(
+        message.includes("循環")
+          ? cycleDependencyMessage(taskName(predecessorId), taskName(successorId))
+          : message,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -119,6 +149,10 @@ export default function DependencyEditor({ projectId, plan, leaves, onChanged }:
           追加
         </button>
       </form>
+      <p className="dependency-type-guide">
+        <span className="dependency-type-guide-type">{type}</span>
+        {DEPENDENCY_TYPE_OPTIONS.find((opt) => opt.value === type)?.guide}
+      </p>
       {formError && <p className="error">{formError}</p>}
 
       {plan.dependencies.length > 0 ? (
