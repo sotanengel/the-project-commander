@@ -48,6 +48,105 @@
   font-size: 13px;
 }
 
+/* ベースラインの目的説明（デフォルト折りたたみ） */
+.gantt-help {
+  margin-top: 8px;
+}
+
+.gantt-help summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.gantt-help-body {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.gantt-help-body p {
+  margin: 0 0 6px;
+}
+
+.gantt-help-subtitle {
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.gantt-variance-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.gantt-variance-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gantt-help-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* チャート凡例（チャート直上の小さな1行） */
+.gantt-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.gantt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gantt-legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* スウォッチ色はチャート本体（.gantt-bar 等）と揃える */
+.gantt-legend-swatch.baseline {
+  height: 5px;
+  background: #9ca3af;
+  border: 0.5px solid #6b7280;
+}
+
+.gantt-legend-swatch.current {
+  background: #93c5fd;
+  border: 1px solid #2563eb;
+}
+
+.gantt-legend-swatch.progress {
+  background: #2563eb;
+  border: 1px solid #2563eb;
+}
+
+.gantt-legend-swatch.today {
+  width: 0;
+  height: 14px;
+  border-radius: 0;
+  border-left: 2px dashed var(--color-danger);
+}
+
 /* SVG: 行背景（未定義だと黒塗りになるため透明に） */
 .gantt-row-bg {
   fill: transparent;

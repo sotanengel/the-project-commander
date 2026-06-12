@@ -2,12 +2,15 @@ import type { Baseline } from "@tpc/shared";
 import { describe, expect, it } from "vitest";
 import {
   baselineChartDayCount,
+  baselinePurposeLines,
   baselineTaskMap,
+  chartLegendItems,
   defaultBaselineLabel,
   formatVariance,
   latestBaseline,
   projectDurationVariance,
   taskFinishVariance,
+  varianceLegendItems,
 } from "./baselineModel.js";
 
 function baseline(overrides: Partial<Baseline> = {}): Baseline {
@@ -106,6 +109,74 @@ describe("baselineModel", () => {
 
     it("ベースライン未選択なら現計画の日数のまま", () => {
       expect(baselineChartDayCount(10, null)).toBe(10);
+    });
+  });
+
+  describe("baselinePurposeLines", () => {
+    it("目的説明の文章を複数行返す", () => {
+      const lines = baselinePurposeLines();
+      expect(lines.length).toBeGreaterThanOrEqual(2);
+      for (const line of lines) {
+        expect(line.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("スナップショット・差・保存タイミングに触れている", () => {
+      const text = baselinePurposeLines().join("");
+      expect(text).toContain("スナップショット");
+      expect(text).toContain("差");
+      expect(text).toContain("保存");
+    });
+  });
+
+  describe("varianceLegendItems", () => {
+    it("遅延・前倒し・計画通りの3項目を返す", () => {
+      const items = varianceLegendItems();
+      expect(items.map((i) => i.tone)).toEqual(["late", "early", "zero"]);
+    });
+
+    it("サンプル表記は formatVariance と一致する", () => {
+      const items = varianceLegendItems();
+      const byTone = new Map(items.map((i) => [i.tone, i]));
+      expect(byTone.get("late")?.sample).toBe(formatVariance(2).text);
+      expect(byTone.get("early")?.sample).toBe(formatVariance(-1).text);
+      expect(byTone.get("zero")?.sample).toBe(formatVariance(0).text);
+    });
+
+    it("説明に意味と色が含まれる", () => {
+      const byTone = new Map(varianceLegendItems().map((i) => [i.tone, i]));
+      expect(byTone.get("late")?.description).toContain("遅延");
+      expect(byTone.get("late")?.description).toContain("赤");
+      expect(byTone.get("early")?.description).toContain("前倒し");
+      expect(byTone.get("early")?.description).toContain("緑");
+      expect(byTone.get("zero")?.description).toContain("計画どおり");
+    });
+  });
+
+  describe("chartLegendItems", () => {
+    it("ベースライン表示中・今日線ありなら4項目（ベースライン/現在計画/進捗/今日線）", () => {
+      const items = chartLegendItems({ hasBaseline: true, hasTodayLine: true });
+      expect(items.map((i) => i.key)).toEqual(["baseline", "current", "progress", "today"]);
+    });
+
+    it("ベースライン未選択ならベースライン項目を含まない", () => {
+      const items = chartLegendItems({ hasBaseline: false, hasTodayLine: true });
+      expect(items.map((i) => i.key)).toEqual(["current", "progress", "today"]);
+    });
+
+    it("今日線がチャート範囲外なら今日線の項目を含まない", () => {
+      const items = chartLegendItems({ hasBaseline: false, hasTodayLine: false });
+      expect(items.map((i) => i.key)).toEqual(["current", "progress"]);
+    });
+
+    it("ラベルが日本語で要素の意味を説明している", () => {
+      const byKey = new Map(
+        chartLegendItems({ hasBaseline: true, hasTodayLine: true }).map((i) => [i.key, i.label]),
+      );
+      expect(byKey.get("baseline")).toContain("ベースライン");
+      expect(byKey.get("current")).toContain("現在");
+      expect(byKey.get("progress")).toContain("進捗");
+      expect(byKey.get("today")).toContain("今日");
     });
   });
 });

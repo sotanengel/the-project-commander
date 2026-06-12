@@ -4,11 +4,16 @@ import { useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import GanttChart from "./GanttChart.js";
 import {
+  baselineChartDayCount,
+  baselinePurposeLines,
+  chartLegendItems,
   defaultBaselineLabel,
   formatVariance,
   latestBaseline,
   projectDurationVariance,
+  varianceLegendItems,
 } from "./baselineModel.js";
+import { chartDayCount, localToday, todayLineX } from "./ganttModel.js";
 import "./gantt.css";
 
 export default function GanttPage() {
@@ -78,6 +83,14 @@ export default function GanttPage() {
   };
 
   const selectedBaseline = baselines.find((b) => b.id === selectedBaselineId) ?? null;
+  // チャートと同じ条件で今日線が描画範囲に入るかを判定し、凡例の表示を揃える
+  const hasTodayLine = plan
+    ? todayLineX(
+        plan.project.startDate,
+        baselineChartDayCount(chartDayCount(plan), selectedBaseline),
+        localToday(),
+      ) !== null
+    : false;
   const durationVariance =
     plan && selectedBaseline
       ? formatVariance(projectDurationVariance(plan.cpm.projectDuration, selectedBaseline))
@@ -146,6 +159,36 @@ export default function GanttPage() {
               ベースラインを保存すると計画とのズレを追跡できます。
             </p>
           )}
+          <details className="gantt-help">
+            <summary>ベースラインと差異バッジの見方</summary>
+            <div className="gantt-help-body">
+              {baselinePurposeLines().map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+              <p className="gantt-help-subtitle">差異バッジ（±n日）の読み方</p>
+              <ul className="gantt-variance-legend">
+                {varianceLegendItems().map((item) => (
+                  <li key={item.tone}>
+                    <span className={`gantt-variance-badge ${item.tone}`}>{item.sample}</span>{" "}
+                    {item.description}
+                  </li>
+                ))}
+              </ul>
+              <p className="gantt-help-note">
+                プロジェクト期間差異は全体の所要日数、各タスク行末の ±n日 は終了日の差です。
+              </p>
+            </div>
+          </details>
+          <div className="gantt-chart-legend" aria-label="チャートの凡例">
+            {chartLegendItems({ hasBaseline: selectedBaseline !== null, hasTodayLine }).map(
+              (item) => (
+                <span key={item.key} className="gantt-legend-item">
+                  <span className={`gantt-legend-swatch ${item.key}`} aria-hidden="true" />
+                  {item.label}
+                </span>
+              ),
+            )}
+          </div>
           <GanttChart plan={plan} baseline={selectedBaseline} />
         </>
       )}
