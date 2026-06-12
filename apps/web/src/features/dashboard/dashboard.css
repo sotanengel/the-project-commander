@@ -2,6 +2,11 @@
 
 .dashboard-hero {
   margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .dashboard-hero h1 {
@@ -28,6 +33,11 @@
 .project-create-form .grow {
   flex: 1;
   min-width: 200px;
+}
+
+.form-field-error {
+  margin: 8px 0 0;
+  font-size: 13px;
 }
 
 .project-create-details {
@@ -150,6 +160,41 @@
   font-weight: 600;
 }
 
+.evm-spi {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* SPI説明の「？」ボタン */
+.spi-help-button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.spi-help-button:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: transparent;
+}
+
+.spi-help-note {
+  margin: 0;
+  font-size: 12px;
+  padding: 6px 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
 .spi-badge.spi-good {
   background: #dcfce7;
   color: var(--color-success);
@@ -185,6 +230,7 @@
 
 /* 空状態 */
 .dashboard-empty {
+  grid-column: 1 / -1;
   text-align: center;
   padding: 48px 16px;
 }
@@ -192,5 +238,38 @@
 .dashboard-empty .icon {
   font-size: 40px;
   line-height: 1;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
+}
+
+.dashboard-empty h2 {
+  margin: 0 0 4px;
+}
+
+.dashboard-empty-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  text-align: left;
+}
+
+.dashboard-empty-choice {
+  flex: 1;
+  min-width: 240px;
+  max-width: 340px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.dashboard-empty-choice h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.dashboard-empty-choice p {
+  margin: 0 0 10px;
+  font-size: 13px;
 }
