@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AiImportError,
   buildExportFileName,
   countTasks,
   extractJson,
@@ -85,6 +86,21 @@ describe("extractJson", () => {
   it("構文エラーのJSONは解析失敗エラーを投げる", () => {
     expect(() => extractJson('{ "tasks": [}, }')).toThrow("JSONの解析に失敗しました");
   });
+
+  it("失敗の種類をAiImportErrorのkindで区別できる", () => {
+    const kindOf = (input: string): string => {
+      try {
+        extractJson(input);
+        return "(no error)";
+      } catch (e) {
+        return e instanceof AiImportError ? e.kind : "(not AiImportError)";
+      }
+    };
+    expect(kindOf("")).toBe("empty");
+    expect(kindOf("ここにはJSONがありません")).toBe("no_json");
+    expect(kindOf('{ "tasks": [')).toBe("truncated");
+    expect(kindOf('{ "tasks": [}, }')).toBe("parse_failed");
+  });
 });
 
 describe("parseAiResponse", () => {
@@ -134,6 +150,33 @@ describe("parseAiResponse", () => {
     expect(() => parseAiResponse('{ "risks": "oops" }', "risk_identify")).toThrow(
       /JSONの形式が正しくありません/,
     );
+  });
+
+  it("スキーマ不一致はAiImportError(schema_mismatch)として不足項目を持つ", () => {
+    const errorOf = (input: string, purpose: Parameters<typeof parseAiResponse>[1]) => {
+      try {
+        parseAiResponse(input, purpose);
+        return null;
+      } catch (e) {
+        return e instanceof AiImportError ? e : null;
+      }
+    };
+
+    // 必須キー自体が無い
+    const missingRoot = errorOf('{ "risks": [] }', "wbs_draft");
+    expect(missingRoot?.kind).toBe("schema_mismatch");
+    expect(missingRoot?.missing).toEqual(["tasks"]);
+
+    // 配列要素の必須項目が無い
+    const missingName = errorOf('{ "tasks": [{ "durationDays": 3 }] }', "wbs_draft");
+    expect(missingName?.kind).toBe("schema_mismatch");
+    expect(missingName?.missing).toEqual(["tasks.0.name"]);
+
+    // 型違い（不足ではない）の場合は missing は空で details に内容が入る
+    const wrongType = errorOf('{ "tasks": [{ "name": 123 }] }', "wbs_draft");
+    expect(wrongType?.kind).toBe("schema_mismatch");
+    expect(wrongType?.missing).toEqual([]);
+    expect(wrongType?.details).toContain("tasks.0.name");
   });
 });
 
