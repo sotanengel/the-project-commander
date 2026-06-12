@@ -60,3 +60,52 @@ export function baselineChartDayCount(currentDayCount: number, baseline: Baselin
   const maxFinish = baseline.tasks.reduce((max, t) => Math.max(max, t.earlyFinish), 0);
   return Math.max(currentDayCount, maxFinish + 2);
 }
+
+/** ベースラインの目的説明（初学者向けの平易な日本語）。1要素=1段落 */
+export function baselinePurposeLines(): string[] {
+  return [
+    "ベースラインとは、計画を承認した時点のスケジュールのスナップショット（控え）です。",
+    "保存しておくと、その後の計画変更や遅れを「当初計画との差」として測れるようになります。",
+    "計画が固まったタイミングで「現在の計画をベースラインとして保存」を押しましょう。",
+  ];
+}
+
+/** 差異バッジ凡例の1項目（sample はバッジの表示例、description は読み方） */
+export interface VarianceLegendItem {
+  tone: VarianceDisplay["tone"];
+  sample: string;
+  description: string;
+}
+
+/** 差異バッジ（±n日）の読み方の凡例。表示例は formatVariance と同じ整形を使う */
+export function varianceLegendItems(): VarianceLegendItem[] {
+  return [
+    { tone: "late", sample: formatVariance(2).text, description: "計画より遅延（赤）" },
+    { tone: "early", sample: formatVariance(-1).text, description: "計画より前倒し（緑）" },
+    { tone: "zero", sample: formatVariance(0).text, description: "計画どおり" },
+  ];
+}
+
+/** チャート凡例の1項目（key はスウォッチの見た目を決めるCSS用キー） */
+export interface ChartLegendItem {
+  key: "baseline" | "current" | "progress" | "today";
+  label: string;
+}
+
+/** チャート要素の凡例。ベースライン未表示・今日線が範囲外のときは該当項目を省く */
+export function chartLegendItems(visible: {
+  hasBaseline: boolean;
+  hasTodayLine: boolean;
+}): ChartLegendItem[] {
+  const items: ChartLegendItem[] = [
+    { key: "current", label: "色付きバー = 現在の計画" },
+    { key: "progress", label: "濃い塗り = 進捗" },
+  ];
+  if (visible.hasTodayLine) {
+    items.push({ key: "today", label: "縦線 = 今日" });
+  }
+  if (visible.hasBaseline) {
+    items.unshift({ key: "baseline", label: "灰色バー = ベースライン（当初計画）" });
+  }
+  return items;
+}
