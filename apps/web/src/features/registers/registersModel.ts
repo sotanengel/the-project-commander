@@ -55,6 +55,34 @@ export function sortRisksByScoreDesc(risks: readonly Risk[]): Risk[] {
   );
 }
 
+// ---- 確率×影響マトリクス凡例（リスクタブ用） ----
+
+/** マトリクス凡例の1セル: 確率×影響の組み合わせとスコア・深刻度 */
+export interface RiskMatrixCell {
+  probability: Level;
+  impact: Level;
+  score: number;
+  severity: ScoreSeverity;
+}
+
+/** 表示順: 行=確率（高→低）、列=影響（低→高） */
+const LEVELS_DESC: readonly Level[] = ["high", "medium", "low"];
+const LEVELS_ASC: readonly Level[] = ["low", "medium", "high"];
+
+/**
+ * 3×3 の確率×影響マトリクス凡例データを生成する。
+ * 行=確率（高→低）、列=影響（低→高）。スコアと深刻度は
+ * riskScore / scoreSeverity と常に一致する。
+ */
+export function riskMatrixRows(): RiskMatrixCell[][] {
+  return LEVELS_DESC.map((probability) =>
+    LEVELS_ASC.map((impact) => {
+      const score = riskScore(probability, impact);
+      return { probability, impact, score, severity: scoreSeverity(score) };
+    }),
+  );
+}
+
 // ---- ステークホルダー関与区分（PMBOK 権力・関心グリッド） ----
 
 /**
@@ -70,4 +98,33 @@ export function engagementCategory(
     return interest === "high" ? "重点的に管理" : "満足を維持";
   }
   return interest === "high" ? "情報を提供" : "監視";
+}
+
+// ---- 権力・関心グリッド凡例（ステークホルダータブ用） ----
+
+/** グリッド凡例で使う高・低の2極 */
+export type ExtremeLevel = Extract<Level, "high" | "low">;
+
+/** グリッド凡例の1セル: 影響力×関心の象限と関与区分ラベル */
+export interface PowerInterestCell {
+  influence: ExtremeLevel;
+  interest: ExtremeLevel;
+  label: string;
+}
+
+/**
+ * 2×2 の権力・関心グリッド凡例データを生成する。
+ * 行=影響力（高→低）、列=関心（低→高）。ラベルは
+ * engagementCategory と常に一致する。
+ */
+export function powerInterestGridRows(): PowerInterestCell[][] {
+  const extremesDesc: readonly ExtremeLevel[] = ["high", "low"];
+  const extremesAsc: readonly ExtremeLevel[] = ["low", "high"];
+  return extremesDesc.map((influence) =>
+    extremesAsc.map((interest) => ({
+      influence,
+      interest,
+      label: engagementCategory(influence, interest),
+    })),
+  );
 }

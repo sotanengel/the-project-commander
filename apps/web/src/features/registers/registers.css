@@ -11,6 +11,74 @@
   color: #b45309;
 }
 
+/* 推奨記入順ガイド・スコアリング凡例（折りたたみ可） */
+.register-guide,
+.register-legend {
+  margin: 4px 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--color-bg);
+}
+
+.register-guide summary,
+.register-legend summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.register-guide-list {
+  margin: 8px 0 4px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+.register-guide-list li {
+  margin: 4px 0;
+}
+
+.register-legend-note {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* 凡例マトリクス（3×3 / 2×2）はコンパクト表示 */
+.legend-matrix {
+  width: auto;
+  margin-bottom: 4px;
+}
+
+.legend-matrix th,
+.legend-matrix td {
+  padding: 4px 16px;
+  text-align: center;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+}
+
+.legend-matrix td.legend-cell {
+  background: var(--color-surface);
+}
+
+/* スコアの色分けはバッジと同じ基準: 7以上=赤 / 4〜6=黄 / 3以下=灰 */
+.legend-matrix td.legend-cell.score-high {
+  background: #fee2e2;
+  color: var(--color-critical);
+  font-weight: 600;
+}
+
+.legend-matrix td.legend-cell.score-medium {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.legend-matrix td.legend-cell.score-low {
+  color: var(--color-text-muted);
+}
+
 /* 達成済みマイルストーン行は muted 表示 */
 tr.milestone-done {
   color: var(--color-text-muted);
