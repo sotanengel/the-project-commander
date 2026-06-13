@@ -80,24 +80,7 @@
   margin-top: 16px;
 }
 
-/* セットアップ画面 */
-.setup-steps {
-  margin: 12px 0 16px;
-  padding-left: 1.25rem;
-  font-size: 14px;
-}
-
-.setup-steps li {
-  margin-bottom: 6px;
-}
-
-.setup-links {
-  gap: 16px;
-}
-
-.setup-links a {
-  font-size: 14px;
-}
+/* セットアップ画面のスタイルは project-setup/setup.css を参照 */
 
 .form-field-error {
   margin: 0 0 8px;
