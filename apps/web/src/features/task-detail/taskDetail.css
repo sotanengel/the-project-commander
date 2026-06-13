@@ -108,8 +108,21 @@
 
 .task-detail-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: 8px;
+}
+
+.task-detail-draft-badge {
+  margin-left: 8px;
+  font-size: 11px;
+  vertical-align: middle;
+}
+
+.task-detail-create-hint {
+  margin: 0;
+  font-size: 13px;
 }
 
 .task-detail-critical {

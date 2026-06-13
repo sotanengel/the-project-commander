@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, Route, Routes, useParams } from "react-router-do
 import { api } from "./api/client.js";
 import AiAssistPage from "./features/ai-assist/AiAssistPage.js";
 import DashboardPage from "./features/dashboard/DashboardPage.js";
+import ProjectEditModal from "./features/dashboard/ProjectEditModal.js";
 import GanttPage from "./features/gantt/GanttPage.js";
 import GuidePage from "./features/guide/GuidePage.js";
 import NetworkPage from "./features/network/NetworkPage.js";
@@ -57,6 +58,9 @@ function ProjectLayout() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -65,6 +69,27 @@ function ProjectLayout() {
       .then(setProject)
       .catch((e: Error) => setError(e.message));
   }, [projectId]);
+
+  const handleEditSubmit = async (input: {
+    name: string;
+    description: string;
+    startDate: string;
+  }) => {
+    if (!projectId) return;
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      const updated = await api.updateProject(projectId, input);
+      setProject(updated);
+      setEditOpen(false);
+    } catch (e) {
+      setEditError(
+        `保存に失敗しました: ${e instanceof Error ? e.message : "不明なエラーが発生しました"}`,
+      );
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   if (error) {
     return (
@@ -82,6 +107,18 @@ function ProjectLayout() {
           ⌘ The Project Commander
         </Link>
         <span className="project-name">{project?.name ?? "読み込み中…"}</span>
+        {project && (
+          <button
+            type="button"
+            className="secondary project-settings-btn"
+            onClick={() => {
+              setEditError(null);
+              setEditOpen(true);
+            }}
+          >
+            設定
+          </button>
+        )}
         <nav className="tabs">
           <NavLink to="" end>
             WBS
@@ -96,6 +133,14 @@ function ProjectLayout() {
       <main className="container">
         <Outlet />
       </main>
+      <ProjectEditModal
+        project={project}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSubmit={handleEditSubmit}
+        submitting={editSubmitting}
+        error={editError}
+      />
     </div>
   );
 }

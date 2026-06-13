@@ -1,10 +1,14 @@
 import type { Dependency, ProjectPlan, Task } from "@tpc/shared";
 import { describe, expect, it } from "vitest";
 import {
+  buildCreateModeBreadcrumb,
   buildTaskBreadcrumb,
+  buildTaskCreateInput,
+  buildTaskDeleteConfirmMessage,
   buildTaskDetailView,
   formatAssignee,
   isLeafTask,
+  isTaskCreateMode,
 } from "./taskDetailModel.js";
 
 const tasks: Task[] = [
@@ -133,6 +137,78 @@ describe("buildTaskDetailView", () => {
       { id: "t1", name: "タスクA" },
       { id: "t2", name: "タスクB" },
     ]);
+  });
+});
+
+describe("isTaskCreateMode", () => {
+  it("taskId が new のとき true", () => {
+    expect(isTaskCreateMode("new")).toBe(true);
+  });
+
+  it("それ以外は false", () => {
+    expect(isTaskCreateMode("t1")).toBe(false);
+    expect(isTaskCreateMode(undefined)).toBe(false);
+  });
+});
+
+describe("buildTaskDeleteConfirmMessage", () => {
+  it("子タスクがない場合は単純な確認メッセージ", () => {
+    expect(buildTaskDeleteConfirmMessage("タスクA", 0)).toBe(
+      "タスク「タスクA」を削除しますか？ この操作は取り消せません。",
+    );
+  });
+
+  it("子タスクがある場合はカスケード削除を案内", () => {
+    expect(buildTaskDeleteConfirmMessage("フェーズ1", 2)).toBe(
+      "タスク「フェーズ1」を削除しますか？ 子タスク 2 件もまとめて削除されます。この操作は取り消せません。",
+    );
+  });
+});
+
+describe("buildCreateModeBreadcrumb", () => {
+  it("親パンくずの末尾に新規を追加する", () => {
+    expect(buildCreateModeBreadcrumb(["フェーズ1", "タスクA"])).toEqual([
+      "フェーズ1",
+      "タスクA",
+      "新規",
+    ]);
+  });
+});
+
+describe("buildTaskCreateInput", () => {
+  it("正常な入力から createTask ペイロードを組み立てる", () => {
+    const result = buildTaskCreateInput(
+      {
+        name: " 子タスク ",
+        duration: "2",
+        progress: "30",
+        description: " 作業 ",
+        assignee: " 太郎 ",
+      },
+      "p1",
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        name: "子タスク",
+        description: "作業",
+        assignee: "太郎",
+        durationDays: 2,
+        progress: 30,
+        parentId: "p1",
+      },
+    });
+  });
+
+  it("バリデーションエラー時は ok:false", () => {
+    const result = buildTaskCreateInput(
+      { name: "", duration: "1", progress: "0", description: "", assignee: "" },
+      "p1",
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors).toContain("タスク名を入力してください");
+    }
   });
 });
 

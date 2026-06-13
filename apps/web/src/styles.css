@@ -66,6 +66,12 @@ body {
   font-weight: 600;
 }
 
+.project-settings-btn {
+  margin-left: 8px;
+  font-size: 13px;
+  padding: 4px 10px;
+}
+
 .tabs {
   display: flex;
   gap: 4px;

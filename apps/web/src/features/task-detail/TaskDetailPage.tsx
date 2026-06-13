@@ -1,25 +1,43 @@
 import type { TaskUpdateInput } from "@tpc/shared";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { validateTaskEdit } from "../wbs/wbsViewModel.js";
-import { type TaskDetailView, buildTaskDetailView, formatAssignee } from "./taskDetailModel.js";
+import {
+  type TaskDetailView,
+  buildCreateModeBreadcrumb,
+  buildTaskBreadcrumb,
+  buildTaskCreateInput,
+  buildTaskDeleteConfirmMessage,
+  buildTaskDetailView,
+  formatAssignee,
+  isTaskCreateMode,
+} from "./taskDetailModel.js";
 import "./taskDetail.css";
 
 function toMessage(e: unknown): string {
   return e instanceof Error ? e.message : "不明なエラーが発生しました";
 }
 
+interface CreateModeContext {
+  parentId: string;
+  breadcrumb: string[];
+}
+
 export default function TaskDetailPage() {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
+  const [searchParams] = useSearchParams();
+  const parentIdParam = searchParams.get("parentId");
   const navigate = useNavigate();
+  const isCreateMode = isTaskCreateMode(taskId);
+
   const [view, setView] = useState<TaskDetailView | null>(null);
+  const [createContext, setCreateContext] = useState<CreateModeContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [addingChild, setAddingChild] = useState(false);
-  const [childError, setChildError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -28,7 +46,7 @@ export default function TaskDetailPage() {
   const [progress, setProgress] = useState("");
 
   const reload = () => {
-    if (!projectId || !taskId) return;
+    if (!projectId || !taskId || isCreateMode) return;
     setLoading(true);
     api
       .getPlan(projectId)
@@ -53,6 +71,41 @@ export default function TaskDetailPage() {
 
   useEffect(() => {
     if (!projectId || !taskId) return;
+
+    if (isCreateMode) {
+      if (!parentIdParam) {
+        setError("親タスクが指定されていません");
+        setCreateContext(null);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      api
+        .getPlan(projectId)
+        .then((plan) => {
+          const parent = plan.tasks.find((t) => t.id === parentIdParam);
+          if (!parent) {
+            setError("親タスクが見つかりません");
+            setCreateContext(null);
+            return;
+          }
+          setCreateContext({
+            parentId: parentIdParam,
+            breadcrumb: buildCreateModeBreadcrumb(buildTaskBreadcrumb(plan.tasks, parentIdParam)),
+          });
+          setName("");
+          setDescription("");
+          setAssignee("");
+          setDuration("1");
+          setProgress("0");
+          setView(null);
+          setError(null);
+        })
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoading(false));
+      return;
+    }
+
     setLoading(true);
     api
       .getPlan(projectId)
@@ -64,6 +117,7 @@ export default function TaskDetailPage() {
           return;
         }
         setView(detail);
+        setCreateContext(null);
         setName(detail.task.name);
         setDescription(detail.task.description);
         setAssignee(detail.task.assignee);
@@ -73,11 +127,35 @@ export default function TaskDetailPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [projectId, taskId]);
+  }, [projectId, taskId, isCreateMode, parentIdParam]);
 
   const handleSave = async () => {
-    if (!taskId || !view) return;
+    if (!projectId) return;
     setSaveError(null);
+
+    if (isCreateMode) {
+      if (!createContext) return;
+      const result = buildTaskCreateInput(
+        { name, duration, progress, description, assignee },
+        createContext.parentId,
+      );
+      if (!result.ok) {
+        setSaveError(result.errors.join(" / "));
+        return;
+      }
+      setSaving(true);
+      try {
+        const created = await api.createTask(projectId, result.value);
+        navigate(`/projects/${projectId}/tasks/${created.id}`);
+      } catch (e) {
+        setSaveError(`保存に失敗しました: ${toMessage(e)}`);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    if (!taskId || !view) return;
 
     const result = validateTaskEdit({
       name,
@@ -108,20 +186,32 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleAddChild = async () => {
+  const handleAddChild = () => {
     if (!projectId || !view) return;
-    setChildError(null);
-    setAddingChild(true);
+    navigate(`/projects/${projectId}/tasks/new?parentId=${view.task.id}`);
+  };
+
+  const handleCancelCreate = () => {
+    if (!projectId || !createContext) return;
+    navigate(`/projects/${projectId}/tasks/${createContext.parentId}`);
+  };
+
+  const handleDelete = async () => {
+    if (!projectId || !taskId || !view || isCreateMode) return;
+    const confirmed = window.confirm(
+      buildTaskDeleteConfirmMessage(view.task.name, view.children.length),
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setSaveError(null);
     try {
-      const child = await api.createTask(projectId, {
-        name: "新しい子タスク",
-        parentId: view.task.id,
-      });
-      navigate(`/projects/${projectId}/tasks/${child.id}`);
+      await api.deleteTask(taskId);
+      navigate(`/projects/${projectId}`);
     } catch (e) {
-      setChildError(`子タスクの追加に失敗しました: ${toMessage(e)}`);
+      setSaveError(`削除に失敗しました: ${toMessage(e)}`);
     } finally {
-      setAddingChild(false);
+      setDeleting(false);
     }
   };
 
@@ -129,7 +219,7 @@ export default function TaskDetailPage() {
     return <p className="muted">読み込み中…</p>;
   }
 
-  if (error || !view) {
+  if (error || (!isCreateMode && !view) || (isCreateMode && !createContext)) {
     return (
       <section className="card">
         <p className="error">{error ?? "タスクが見つかりません"}</p>
@@ -138,15 +228,22 @@ export default function TaskDetailPage() {
     );
   }
 
+  const breadcrumb = isCreateMode ? (createContext?.breadcrumb ?? []) : (view?.breadcrumb ?? []);
+  const title = isCreateMode ? name.trim() || "新しい子タスク" : (view?.task.name ?? "");
+  const isLeaf = isCreateMode ? true : (view?.isLeaf ?? true);
+
   return (
     <section className="card task-detail">
       <header className="task-detail-header">
         <p className="task-detail-breadcrumb muted">
           <Link to={`/projects/${projectId}`}>WBS</Link>
           {" / "}
-          {view.breadcrumb.join(" / ")}
+          {breadcrumb.join(" / ")}
         </p>
-        <h1 className="task-detail-title">{view.task.name}</h1>
+        <h1 className="task-detail-title">
+          {title}
+          {isCreateMode && <span className="badge task-detail-draft-badge">下書き</span>}
+        </h1>
       </header>
 
       <form
@@ -158,7 +255,13 @@ export default function TaskDetailPage() {
       >
         <div className="task-detail-field">
           <label htmlFor="task-name">タスク名</label>
-          <input id="task-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input
+            id="task-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={isCreateMode ? "新しい子タスク" : undefined}
+            required
+          />
         </div>
 
         <div className="task-detail-field">
@@ -188,7 +291,7 @@ export default function TaskDetailPage() {
           <div>
             <dt>所要日数</dt>
             <dd>
-              {view.isLeaf ? (
+              {isLeaf ? (
                 <input
                   type="number"
                   min={0}
@@ -199,14 +302,14 @@ export default function TaskDetailPage() {
                   aria-label="所要日数"
                 />
               ) : (
-                `${view.task.durationDays}日（子タスクから自動集計）`
+                `${view?.task.durationDays}日（子タスクから自動集計）`
               )}
             </dd>
           </div>
           <div>
             <dt>進捗</dt>
             <dd>
-              {view.isLeaf ? (
+              {isLeaf ? (
                 <input
                   type="number"
                   min={0}
@@ -218,11 +321,11 @@ export default function TaskDetailPage() {
                   aria-label="進捗"
                 />
               ) : (
-                `${Math.round(view.task.progress)}%（子タスクから自動集計）`
+                `${Math.round(view?.task.progress ?? 0)}%（子タスクから自動集計）`
               )}
             </dd>
           </div>
-          {view.schedule && (
+          {!isCreateMode && view?.schedule && (
             <>
               <div>
                 <dt>開始日</dt>
@@ -246,70 +349,95 @@ export default function TaskDetailPage() {
           )}
         </dl>
 
-        <div className="task-detail-children">
-          <div className="task-detail-children-head">
-            <h3>子タスク</h3>
-            <button
-              type="button"
-              className="secondary"
-              disabled={addingChild}
-              onClick={handleAddChild}
-            >
-              {addingChild ? "追加中…" : "+ 子タスクを追加"}
-            </button>
-          </div>
-          {childError && <p className="error">{childError}</p>}
-          {view.children.length === 0 ? (
-            <p className="muted task-detail-empty-deps">子タスクはありません</p>
-          ) : (
-            <ul>
-              {view.children.map((t) => (
-                <li key={t.id}>
-                  <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {!isCreateMode && view && (
+          <>
+            <div className="task-detail-children">
+              <div className="task-detail-children-head">
+                <h3>子タスク</h3>
+                <button type="button" className="secondary" onClick={handleAddChild}>
+                  + 子タスクを追加
+                </button>
+              </div>
+              {view.children.length === 0 ? (
+                <p className="muted task-detail-empty-deps">子タスクはありません</p>
+              ) : (
+                <ul>
+                  {view.children.map((t) => (
+                    <li key={t.id}>
+                      <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-        <div className="task-detail-deps">
-          <div>
-            <h3>先行タスク</h3>
-            {view.predecessors.length === 0 ? (
-              <p className="muted task-detail-empty-deps">なし</p>
-            ) : (
-              <ul>
-                {view.predecessors.map((t) => (
-                  <li key={t.id}>
-                    <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div>
-            <h3>後続タスク</h3>
-            {view.successors.length === 0 ? (
-              <p className="muted task-detail-empty-deps">なし</p>
-            ) : (
-              <ul>
-                {view.successors.map((t) => (
-                  <li key={t.id}>
-                    <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+            <div className="task-detail-deps">
+              <div>
+                <h3>先行タスク</h3>
+                {view.predecessors.length === 0 ? (
+                  <p className="muted task-detail-empty-deps">なし</p>
+                ) : (
+                  <ul>
+                    {view.predecessors.map((t) => (
+                      <li key={t.id}>
+                        <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <h3>後続タスク</h3>
+                {view.successors.length === 0 ? (
+                  <p className="muted task-detail-empty-deps">なし</p>
+                ) : (
+                  <ul>
+                    {view.successors.map((t) => (
+                      <li key={t.id}>
+                        <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {isCreateMode && (
+          <p className="muted task-detail-create-hint">
+            保存するまでタスクは作成されません。キャンセルすると入力内容は破棄されます。
+          </p>
+        )}
 
         {saveError && <p className="error">{saveError}</p>}
 
         <div className="task-detail-actions">
-          <button type="submit" disabled={saving}>
+          <button type="submit" disabled={saving || deleting}>
             {saving ? "保存中…" : "保存"}
           </button>
-          <Link to={`/projects/${projectId}`}>WBSへ戻る</Link>
+          {isCreateMode ? (
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleCancelCreate}
+              disabled={saving}
+            >
+              キャンセル
+            </button>
+          ) : (
+            <Link to={`/projects/${projectId}`}>WBSへ戻る</Link>
+          )}
+          {!isCreateMode && (
+            <button
+              type="button"
+              className="danger"
+              disabled={saving || deleting}
+              onClick={() => void handleDelete()}
+            >
+              {deleting ? "削除中…" : "削除"}
+            </button>
+          )}
         </div>
       </form>
     </section>
