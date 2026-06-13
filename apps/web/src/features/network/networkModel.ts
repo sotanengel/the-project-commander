@@ -2,8 +2,137 @@
  * ネットワーク図・依存関係エディタのロジック（純粋関数）。
  * 描画コンポーネントから分離し、Vitestでテスト可能にする。
  */
-import type { DependencyType, Task } from "@tpc/shared";
+import type { CpmResult, Dependency, DependencyType, ScheduledTask, Task } from "@tpc/shared";
 import { buildWbsTree, flattenWbsTree } from "@tpc/shared";
+
+/** ノード幅の下限 */
+export const NODE_MIN_WIDTH = 120;
+/** ノード幅の上限 */
+export const NODE_MAX_WIDTH = 240;
+/** ノード高さ（名称2行 + サブラベル） */
+export const NODE_HEIGHT = 56;
+/** earlyStart 列あたりの横方向ピッチ */
+export const LAYOUT_COL_WIDTH = 260;
+/** キャンバス余白 */
+export const LAYOUT_PADDING = 40;
+/** 同一列内の縦方向ギャップ */
+export const LAYOUT_ROW_GAP = 16;
+
+export interface NetworkNodeLayout {
+  task: Task;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  critical: boolean;
+  float: number;
+  sublabel: string;
+}
+
+export interface NetworkEdgeLayout {
+  id: string;
+  points: string;
+  label: string | null;
+  critical: boolean;
+}
+
+export interface NetworkGraphLayout {
+  nodes: NetworkNodeLayout[];
+  edges: NetworkEdgeLayout[];
+  width: number;
+  height: number;
+}
+
+/** タスク名の文字数からノード幅を推定する */
+export function estimateNodeWidth(name: string): number {
+  const charWidth = 12;
+  const padding = 24;
+  const estimated = name.length * charWidth + padding;
+  return Math.min(NODE_MAX_WIDTH, Math.max(NODE_MIN_WIDTH, estimated));
+}
+
+/** L字型 polyline の points 文字列を生成する */
+export function buildEdgePolyline(from: NetworkNodeLayout, to: NetworkNodeLayout): string {
+  const x1 = from.x + from.width;
+  const y1 = from.y + from.height / 2;
+  const x2 = to.x;
+  const y2 = to.y + to.height / 2;
+  const midX = (x1 + x2) / 2;
+  return `${x1},${y1} ${midX},${y1} ${midX},${y2} ${x2},${y2}`;
+}
+
+/**
+ * 葉タスクと CPM 結果からネットワーク図のレイアウトを計算する。
+ * X=earlyStart 列、同一列内は WBS 順で縦積み。
+ */
+export function layoutNetworkGraph(
+  leaves: Task[],
+  cpm: CpmResult,
+  dependencies: Dependency[],
+): NetworkGraphLayout | null {
+  if (leaves.length === 0) return null;
+
+  const schedule = new Map(cpm.tasks.map((t) => [t.taskId, t]));
+
+  const columns = new Map<number, Task[]>();
+  for (const task of leaves) {
+    const earlyStart = schedule.get(task.id)?.earlyStart ?? 0;
+    const col = columns.get(earlyStart) ?? [];
+    col.push(task);
+    columns.set(earlyStart, col);
+  }
+
+  const nodes: NetworkNodeLayout[] = [];
+  let maxRight = LAYOUT_PADDING;
+  let maxBottom = LAYOUT_PADDING;
+
+  const sortedStarts = [...columns.keys()].sort((a, b) => a - b);
+  for (const earlyStart of sortedStarts) {
+    const colTasks = columns.get(earlyStart) ?? [];
+    let y = LAYOUT_PADDING;
+    const x = earlyStart * LAYOUT_COL_WIDTH + LAYOUT_PADDING;
+
+    for (const task of colTasks) {
+      const s: ScheduledTask | undefined = schedule.get(task.id);
+      const width = estimateNodeWidth(task.name);
+      const height = NODE_HEIGHT;
+      nodes.push({
+        task,
+        x,
+        y,
+        width,
+        height,
+        critical: s?.isCritical ?? false,
+        float: s?.totalFloat ?? 0,
+        sublabel: `${task.durationDays}日 / TF ${s?.totalFloat ?? 0}`,
+      });
+      y += height + LAYOUT_ROW_GAP;
+      maxRight = Math.max(maxRight, x + width);
+      maxBottom = Math.max(maxBottom, y);
+    }
+  }
+
+  const byId = new Map(nodes.map((n) => [n.task.id, n]));
+  const edges: NetworkEdgeLayout[] = [];
+  for (const d of dependencies) {
+    const from = byId.get(d.predecessorId);
+    const to = byId.get(d.successorId);
+    if (!from || !to) continue;
+    edges.push({
+      id: d.id,
+      points: buildEdgePolyline(from, to),
+      label: edgeLabel(d.type, d.lagDays),
+      critical: from.critical && to.critical,
+    });
+  }
+
+  return {
+    nodes,
+    edges,
+    width: Math.max(maxRight + LAYOUT_PADDING, 400),
+    height: Math.max(maxBottom + LAYOUT_PADDING, 200),
+  };
+}
 
 /**
  * エッジに表示するラベル文字列を返す。
