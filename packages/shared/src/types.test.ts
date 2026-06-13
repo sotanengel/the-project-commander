@@ -35,8 +35,20 @@ describe("TaskCommentSchema", () => {
       taskId: "t1",
       body: "設計レビュー完了",
       createdAt: "2026-06-13T05:30:00.000Z",
+      updatedAt: null,
     });
     expect(parsed.body).toBe("設計レビュー完了");
+    expect(parsed.updatedAt).toBeNull();
+  });
+
+  it("updatedAt 省略時は null になる", () => {
+    const parsed = TaskCommentSchema.parse({
+      id: "c1",
+      taskId: "t1",
+      body: "設計レビュー完了",
+      createdAt: "2026-06-13T05:30:00.000Z",
+    });
+    expect(parsed.updatedAt).toBeNull();
   });
 
   it("空の body は拒否する", () => {

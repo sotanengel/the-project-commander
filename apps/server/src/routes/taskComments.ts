@@ -1,7 +1,13 @@
-import { TaskCommentCreateSchema } from "@tpc/shared";
+import { TaskCommentCreateSchema, TaskCommentUpdateSchema } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { getTask } from "../repositories/task.js";
-import { insertComment, listCommentsByTask } from "../repositories/taskComment.js";
+import {
+  deleteComment,
+  getComment,
+  insertComment,
+  listCommentsByTask,
+  updateComment,
+} from "../repositories/taskComment.js";
 
 export default async function taskCommentRoutes(
   app: FastifyInstance,
@@ -20,5 +26,20 @@ export default async function taskCommentRoutes(
     const comment = insertComment(db, req.params.taskId, input.body);
     reply.code(201);
     return comment;
+  });
+
+  app.put<{ Params: { id: string } }>("/api/task-comments/:id", async (req, reply) => {
+    const existing = getComment(db, req.params.id);
+    if (!existing) return reply.code(404).send({ error: "コメントが見つかりません" });
+    const input = TaskCommentUpdateSchema.parse(req.body);
+    const updated = updateComment(db, req.params.id, input.body);
+    return updated;
+  });
+
+  app.delete<{ Params: { id: string } }>("/api/task-comments/:id", async (req, reply) => {
+    const existing = getComment(db, req.params.id);
+    if (!existing) return reply.code(404).send({ error: "コメントが見つかりません" });
+    deleteComment(db, req.params.id);
+    return { ok: true };
   });
 }

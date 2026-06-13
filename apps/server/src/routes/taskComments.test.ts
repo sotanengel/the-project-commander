@@ -73,6 +73,7 @@ describe("task comments API", () => {
       expect(created.taskId).toBe(taskId);
       expect(created.body).toBe("設計完了");
       expect(created.createdAt).toBeTruthy();
+      expect(created.updatedAt).toBeNull();
       const comments = await listComments();
       expect(comments).toHaveLength(1);
     });
@@ -110,6 +111,85 @@ describe("task comments API", () => {
       const del = await app.inject({ method: "DELETE", url: `/api/tasks/${taskId}` });
       expect(del.statusCode).toBe(200);
       const res = await app.inject({ method: "GET", url: `/api/tasks/${taskId}/comments` });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("PUT /api/task-comments/:id", () => {
+    it("コメントを更新し updatedAt を設定する", async () => {
+      const created = (
+        await app.inject({
+          method: "POST",
+          url: `/api/tasks/${taskId}/comments`,
+          payload: { body: "初稿" },
+        })
+      ).json() as TaskComment;
+
+      const res = await app.inject({
+        method: "PUT",
+        url: `/api/task-comments/${created.id}`,
+        payload: { body: "  修正版  " },
+      });
+      expect(res.statusCode).toBe(200);
+      const updated = res.json() as TaskComment;
+      expect(updated.body).toBe("修正版");
+      expect(updated.updatedAt).toBeTruthy();
+      expect(new Date(updated.updatedAt ?? 0).getTime()).toBeGreaterThanOrEqual(
+        new Date(created.createdAt).getTime(),
+      );
+    });
+
+    it("空文字・空白のみは 400", async () => {
+      const created = (
+        await app.inject({
+          method: "POST",
+          url: `/api/tasks/${taskId}/comments`,
+          payload: { body: "x" },
+        })
+      ).json() as TaskComment;
+      const res = await app.inject({
+        method: "PUT",
+        url: `/api/task-comments/${created.id}`,
+        payload: { body: "   " },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("存在しない id は 404", async () => {
+      const res = await app.inject({
+        method: "PUT",
+        url: "/api/task-comments/no-such",
+        payload: { body: "x" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("DELETE /api/task-comments/:id", () => {
+    it("コメントを削除する", async () => {
+      const created = (
+        await app.inject({
+          method: "POST",
+          url: `/api/tasks/${taskId}/comments`,
+          payload: { body: "削除対象" },
+        })
+      ).json() as TaskComment;
+
+      const del = await app.inject({
+        method: "DELETE",
+        url: `/api/task-comments/${created.id}`,
+      });
+      expect(del.statusCode).toBe(200);
+      expect(del.json()).toEqual({ ok: true });
+      const comments = await listComments();
+      expect(comments).toHaveLength(0);
+    });
+
+    it("存在しない id は 404", async () => {
+      const res = await app.inject({
+        method: "DELETE",
+        url: "/api/task-comments/no-such",
+      });
       expect(res.statusCode).toBe(404);
     });
   });

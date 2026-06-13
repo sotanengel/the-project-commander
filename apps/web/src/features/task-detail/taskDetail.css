@@ -172,56 +172,111 @@
   text-decoration: underline;
 }
 
-.task-detail-comments {
+.task-comments-panel {
+  margin-top: 16px;
+}
+
+.task-comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-comments-header {
+  margin: 0;
+}
+
+.task-comments-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.task-comments-lead {
+  margin: 0;
+  font-size: 13px;
+}
+
+.task-comments-compose,
+.task-comments-list-wrap {
   padding: 12px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
 
-.task-detail-comments h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
+.task-comments-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.task-detail-comments-empty {
-  margin: 0 0 12px;
+.task-comments-compose label,
+.task-comments-list-heading {
+  margin: 0;
   font-size: 13px;
+  color: var(--color-text-muted);
+  font-weight: 600;
 }
 
-.task-detail-comment-list {
-  margin: 0 0 12px;
+.task-comments-compose textarea,
+.task-comments-edit textarea {
+  font-size: 14px;
+  color: var(--color-text);
+  min-height: 72px;
+  resize: vertical;
+}
+
+.task-comments-compose button {
+  align-self: flex-start;
+}
+
+.task-comments-list {
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.task-detail-comment-item {
-  padding: 10px 0;
+.task-comments-item {
+  padding: 12px 0;
   border-bottom: 1px solid var(--color-border);
 }
 
-.task-detail-comment-item:last-child {
+.task-comments-item:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
-.task-detail-comment-time {
-  display: block;
-  margin-bottom: 4px;
+.task-comments-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 6px;
+}
+
+.task-comments-time {
   font-size: 12px;
   color: var(--color-text-muted);
 }
 
-.task-detail-comment-body {
-  margin: 0;
+.task-comments-body {
+  margin: 0 0 8px;
   font-size: 14px;
   white-space: pre-wrap;
 }
 
-.task-detail-comment-form textarea {
-  min-height: 72px;
+.task-comments-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.task-detail-comment-form button {
-  align-self: flex-start;
-  margin-top: 4px;
+.task-comments-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-comments-empty {
+  margin: 8px 0 0;
+  font-size: 13px;
 }

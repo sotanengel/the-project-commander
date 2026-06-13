@@ -195,12 +195,18 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
         );
       }
       const insertComment = db.prepare(
-        "INSERT INTO task_comments (id, taskId, body, createdAt) VALUES (?, ?, ?, ?)",
+        "INSERT INTO task_comments (id, taskId, body, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)",
       );
       for (const comment of bundle.taskComments) {
         const mappedTaskId = idMap.get(comment.taskId);
         if (!mappedTaskId) continue;
-        insertComment.run(newId(), mappedTaskId, comment.body, comment.createdAt);
+        insertComment.run(
+          newId(),
+          mappedTaskId,
+          comment.body,
+          comment.createdAt,
+          comment.updatedAt,
+        );
       }
     });
     importTx();

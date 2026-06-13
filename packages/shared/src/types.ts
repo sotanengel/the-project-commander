@@ -62,6 +62,8 @@ export const TaskCommentSchema = z.object({
   taskId: z.string(),
   body: z.string().min(1, "コメントは必須です"),
   createdAt: z.string(),
+  /** 最終更新日時。未更新の場合は null */
+  updatedAt: z.string().nullable().default(null),
 });
 export type TaskComment = z.infer<typeof TaskCommentSchema>;
 
@@ -69,6 +71,9 @@ export const TaskCommentCreateSchema = z.object({
   body: z.string().trim().min(1, "コメントは必須です"),
 });
 export type TaskCommentCreateInput = z.infer<typeof TaskCommentCreateSchema>;
+
+export const TaskCommentUpdateSchema = TaskCommentCreateSchema;
+export type TaskCommentUpdateInput = z.infer<typeof TaskCommentUpdateSchema>;
 
 /** 階層構造のままタスクを一括登録するための入力（AI取り込み・MCP・bulk APIで使用） */
 export interface BulkTaskInput {

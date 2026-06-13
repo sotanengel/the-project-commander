@@ -18,6 +18,7 @@ import type {
   Task,
   TaskComment,
   TaskCommentCreateInput,
+  TaskCommentUpdateInput,
   TaskCreateInput,
   TaskUpdateInput,
 } from "@tpc/shared";
@@ -98,6 +99,9 @@ export const api = {
   listTaskComments: (taskId: string) => get<TaskComment[]>(`/api/tasks/${taskId}/comments`),
   createTaskComment: (taskId: string, input: TaskCommentCreateInput) =>
     post<TaskComment>(`/api/tasks/${taskId}/comments`, input),
+  updateTaskComment: (id: string, input: TaskCommentUpdateInput) =>
+    put<TaskComment>(`/api/task-comments/${id}`, input),
+  deleteTaskComment: (id: string) => del<{ ok: true }>(`/api/task-comments/${id}`),
 
   // 依存関係
   listDependencies: (projectId: string) =>

@@ -23,3 +23,12 @@ export function formatCommentTimestamp(iso: string): string {
     minute: "2-digit",
   });
 }
+
+/** 投稿日時と更新日時の表示ラベルを返す */
+export function formatCommentTimeLabels(createdAt: string, updatedAt: string | null): string[] {
+  const labels = [`投稿: ${formatCommentTimestamp(createdAt)}`];
+  if (updatedAt) {
+    labels.push(`更新: ${formatCommentTimestamp(updatedAt)}`);
+  }
+  return labels;
+}

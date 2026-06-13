@@ -34,7 +34,8 @@ export function createDb(path: string): Db {
       id TEXT PRIMARY KEY,
       taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
       body TEXT NOT NULL,
-      createdAt TEXT NOT NULL
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT
     );
     CREATE TABLE IF NOT EXISTS dependencies (
       id TEXT PRIMARY KEY,
@@ -78,7 +79,15 @@ export function createDb(path: string): Db {
       note TEXT NOT NULL DEFAULT ''
     );
   `);
+  migrateTaskCommentsTable(db);
   return db;
+}
+
+function migrateTaskCommentsTable(db: Db): void {
+  const cols = db.prepare("PRAGMA table_info(task_comments)").all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "updatedAt")) {
+    db.exec("ALTER TABLE task_comments ADD COLUMN updatedAt TEXT");
+  }
 }
 
 export function newId(): string {
