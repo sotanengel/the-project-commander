@@ -170,7 +170,8 @@ cp .env.example .env   # TG_AUTH_TOKEN を設定
 pnpm start
 ```
 
-- 初回起動時のみ `qwen2.5:3b-instruct` のダウンロードが走ります（数分かかる場合あり）
+- 初回起動時のみ Ollama モデルのダウンロードが走ります（数分かかる場合あり）
+- **RAM 12 GiB 未満**の PC は自動で `qwen2.5:3b-instruct`、**12 GiB 以上**は `qwen2.5:7b-instruct` を選びます（`TPC_OLLAMA_MODEL` で上書き可）
 - CPU のみの PC では分析に 1〜3 分かかることがあります（タイムアウトは 10 分）
 - 2 回目以降はキャッシュ済みモデルをそのまま利用します
 - 無効化: `.env` に `TPC_LOCAL_AGENT=off`

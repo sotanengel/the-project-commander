@@ -29,7 +29,7 @@ ensure_local_ollama() {
 
   if ! command -v docker >/dev/null 2>&1; then
     echo "Warning: Ollama が ${url} で応答しません。docker がないため自動起動できません。" >&2
-    echo "  ollama serve && ollama pull qwen2.5:7b-instruct を実行するか、pnpm start を利用してください。" >&2
+    echo "  ollama serve を実行するか、pnpm start を利用してください。" >&2
     return 0
   fi
 
@@ -52,6 +52,7 @@ ensure_local_ollama() {
 
 main() {
   load_env_file "${ROOT}/.env"
+  resolve_and_export_ollama_model
   ensure_local_ollama
   local host_port
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
@@ -65,7 +66,7 @@ main() {
     echo " Web:  http://localhost:5173"
     echo " API:  http://localhost:${host_port}"
     if [[ -n "${TPC_OLLAMA_BASE_URL:-}" ]]; then
-      echo " LLM:  ${TPC_OLLAMA_BASE_URL}"
+      echo " LLM:  ${TPC_OLLAMA_BASE_URL} (${TPC_OLLAMA_MODEL:-auto})"
     fi
     echo " Stop: Ctrl+C"
     echo "=========================================="

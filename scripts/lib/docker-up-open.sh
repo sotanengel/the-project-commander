@@ -100,12 +100,18 @@ load_env_file() {
   fi
 }
 
+_DUPO_SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
+[[ "${_DUPO_SCRIPT_DIR}" == "${BASH_SOURCE[0]}" ]] && _DUPO_SCRIPT_DIR="."
+# shellcheck source=scripts/lib/resolve-ollama-model.sh
+source "${_DUPO_SCRIPT_DIR}/resolve-ollama-model.sh"
+
 prepare_docker_runtime() {
   local host_port
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
   export TPC_HOST_PORT="${host_port}"
   configure_runtime "${host_port}"
-  local ollama_model="${TPC_OLLAMA_MODEL:-qwen2.5:3b-instruct}"
+  resolve_and_export_ollama_model
+  local ollama_model="${TPC_OLLAMA_MODEL}"
   {
     echo ""
     echo "=========================================="
