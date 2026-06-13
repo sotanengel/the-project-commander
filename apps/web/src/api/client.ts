@@ -33,10 +33,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
-      headers: { "Content-Type": "application/json" },
-      ...init,
-    });
+    res = await fetch(path, init);
   } catch (err) {
     throw new ApiError(0, `サーバーに接続できません: ${err instanceof Error ? err.message : err}`);
   }
@@ -56,10 +53,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const get = <T>(path: string) => request<T>(path);
+const jsonHeaders = { "Content-Type": "application/json" };
 const post = <T>(path: string, body: unknown) =>
-  request<T>(path, { method: "POST", body: JSON.stringify(body) });
+  request<T>(path, { method: "POST", headers: jsonHeaders, body: JSON.stringify(body) });
 const put = <T>(path: string, body: unknown) =>
-  request<T>(path, { method: "PUT", body: JSON.stringify(body) });
+  request<T>(path, { method: "PUT", headers: jsonHeaders, body: JSON.stringify(body) });
 const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
 
 export type { BulkTaskInput };
