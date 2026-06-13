@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -32,6 +33,30 @@ function isTruthyEnv(value: string | undefined, defaultValue: boolean): boolean 
   return defaultValue;
 }
 
+/** Docker 等のコンテナ内で動作している可能性が高いか */
+export function isLikelyContainerEnvironment(): boolean {
+  if (process.env.TPC_IN_CONTAINER === "1") return true;
+  if (existsSync("/.dockerenv")) return true;
+  try {
+    if (existsSync("/proc/1/cgroup") && existsSync("/proc/self/cgroup")) {
+      const cgroup = [...readCgroup("/proc/1/cgroup"), ...readCgroup("/proc/self/cgroup")].join(
+        "\n",
+      );
+      if (/docker|containerd|kubepods/i.test(cgroup)) return true;
+    }
+  } catch {
+    // cgroup 読み取り不可の環境では /.dockerenv のみ頼る
+  }
+  return false;
+}
+
+function readCgroup(path: string): string {
+  return readFileSync(path, "utf8");
+}
+
+const CONTAINER_CLI_MESSAGE =
+  "Docker コンテナ内ではホストの Claude CLI を実行できません。AI 提案を使う場合は `pnpm dev` でサーバーをローカル起動してください。";
+
 /** claude CLI の実行可能性を確認する */
 export async function checkCliAgentStatus(options: CliAgentStatusOptions): Promise<CliAgentStatus> {
   if (options.provider === "off") {
@@ -40,6 +65,15 @@ export async function checkCliAgentStatus(options: CliAgentStatusOptions): Promi
       ready: false,
       mcpConnected: false,
       message: "TPC_CLI_AGENT=off のため無効です",
+    };
+  }
+
+  if (isLikelyContainerEnvironment()) {
+    return {
+      provider: "off",
+      ready: false,
+      mcpConnected: false,
+      message: CONTAINER_CLI_MESSAGE,
     };
   }
 

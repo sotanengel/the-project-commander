@@ -177,6 +177,8 @@ Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP �
 
 CLI 未設定時もコメント保存は成功します（AI 提案のみ省略）。
 
+**Docker（`pnpm start` / `docker compose`）では AI 提案は利用できません。** コンテナ内からホストの Claude CLI や macOS の認証情報にアクセスできないためです。AI 提案を使う場合は **`pnpm dev`** で API サーバーをローカル起動してください（Web は http://localhost:5173、API はホスト上の Node.js が `claude` を実行します）。
+
 ## AIアシスト（プロンプト方式）
 
 MCP 非対応の ChatGPT 等向け:
