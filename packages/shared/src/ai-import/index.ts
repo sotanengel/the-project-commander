@@ -1,10 +1,10 @@
+import { FULL_PROJECT_PLAN_SCHEMA } from "../ai-prompts/schemas.js";
 import type { BulkTaskInput, Project } from "../types.js";
+import type { PlanDraftInput } from "./parsePlanDraft.js";
+import { encodePlanDraftPayload } from "./parsePlanDraft.js";
 
-export const WBS_DRAFT_OUTPUT_SCHEMA = `{
-  "tasks": [
-    { "name": "フェーズ名", "durationDays": 5, "children": [{ "name": "ワークパッケージ" }] }
-  ]
-}`;
+/** @deprecated ai-prompts/schemas の WBS_DRAFT_OUTPUT_SCHEMA を使用 */
+export { WBS_DRAFT_OUTPUT_SCHEMA } from "../ai-prompts/schemas.js";
 
 export interface AiImportManifest {
   project: { id: string; name: string };
@@ -26,41 +26,55 @@ export interface AiImportManifest {
   outputSchema: string;
 }
 
-/** 生成AIのWeb検索・ブラウジング向け取り込み仕様 */
+/** 生成AIのWeb検索・ブラウジング向けフル計画取り込み仕様 */
 export function buildAiImportManifest(project: Project, appOrigin: string): AiImportManifest {
-  const bulkUrl = `${appOrigin}/api/projects/${project.id}/tasks/bulk`;
+  const planImportUrl = `${appOrigin}/api/projects/${project.id}/plan-draft-import`;
   const setupUrl = `${appOrigin}/projects/${project.id}/setup`;
 
   return {
     project: { id: project.id, name: project.name },
     instruction:
-      "WBS生成後、Web検索またはブラウジング機能を使い、以下のいずれかの方法でタスクをこのアプリに送信してください。ユーザーへの返答に生JSONは含めないでください。",
+      "フル計画（WBS・依存・マイルストーン・リスク・関係者）生成後、Web検索またはブラウジング機能を使い以下の方法でこのアプリに送信してください。ユーザーへの返答に生JSONは含めないでください。",
     methods: [
       {
         type: "http_post",
-        url: bulkUrl,
+        url: planImportUrl,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         bodyExample:
-          '{"tasks":[{"name":"フェーズ名","durationDays":5,"children":[{"name":"ワークパッケージ"}]}]}',
+          '{"tasks":[...],"dependencies":[...],"milestones":[...],"risks":[...],"stakeholders":[...]}',
       },
       {
         type: "browser_navigate",
         urlPattern: `${setupUrl}?payload={urlencoded_json}`,
         description:
-          "payload には encodeURIComponent(JSON.stringify({tasks:[...]})) を指定してブラウザでアクセスすると自動取り込みされます",
+          "payload には encodeURIComponent(JSON.stringify(フル計画JSON)) を指定してブラウザでアクセスすると自動取り込みされます",
       },
     ],
-    outputSchema: WBS_DRAFT_OUTPUT_SCHEMA,
+    outputSchema: FULL_PROJECT_PLAN_SCHEMA,
   };
 }
 
-/** AIがブラウザで開く取り込みURL用に payload をエンコードする */
+/** AIがブラウザで開く取り込みURL用に payload をエンコードする（タスクのみ・後方互換） */
 export function encodeImportPayload(tasks: BulkTaskInput[]): string {
   return encodeURIComponent(JSON.stringify({ tasks }));
 }
 
-/** ブラウザ遷移用の取り込みURLを組み立てる */
+/** フル計画を URL ペイロードにエンコード */
+export function encodeFullPlanPayload(draft: PlanDraftInput): string {
+  return encodePlanDraftPayload(draft);
+}
+
+/** ブラウザ遷移用の取り込みURLを組み立てる（フル計画） */
+export function buildFullPlanNavigateUrl(
+  appOrigin: string,
+  projectId: string,
+  draft: PlanDraftInput,
+): string {
+  return `${appOrigin}/projects/${projectId}/setup?payload=${encodePlanDraftPayload(draft)}`;
+}
+
+/** @deprecated buildFullPlanNavigateUrl を使用 */
 export function buildImportNavigateUrl(
   appOrigin: string,
   projectId: string,

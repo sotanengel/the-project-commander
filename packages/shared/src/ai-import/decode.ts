@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { type BulkTaskInput, BulkTaskSchema } from "../types.js";
+import { decodePlanDraftPayload, parsePlanDraft } from "./parsePlanDraft.js";
 
-const WbsImportSchema = z.object({
+const WbsOnlySchema = z.object({
   tasks: z.array(BulkTaskSchema).min(1, "取り込むタスクがありません"),
 });
 
 /**
- * URL クエリの payload をデコードしてタスク配列に変換する。
+ * URL クエリの payload をデコードする。
+ * フル計画（tasks+dependencies+...）または tasks のみの旧形式に対応。
  */
 export function decodeImportPayload(encoded: string): BulkTaskInput[] {
   let raw: unknown;
@@ -15,6 +17,11 @@ export function decodeImportPayload(encoded: string): BulkTaskInput[] {
   } catch {
     throw new Error("取り込みデータの形式が正しくありません");
   }
-  const data = WbsImportSchema.parse(raw);
+  if (typeof raw === "object" && raw !== null && "dependencies" in raw) {
+    return parsePlanDraft(raw).tasks;
+  }
+  const data = WbsOnlySchema.parse(raw);
   return data.tasks;
 }
+
+export { decodePlanDraftPayload, parsePlanDraft };

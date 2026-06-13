@@ -42,7 +42,7 @@ describe("buildAiImportManifest", () => {
     expect(manifest.project.id).toBe("proj-abc123");
     expect(manifest.methods[0]).toMatchObject({
       type: "http_post",
-      url: "http://localhost:3001/api/projects/proj-abc123/tasks/bulk",
+      url: "http://localhost:3001/api/projects/proj-abc123/plan-draft-import",
     });
     expect(manifest.methods[1]).toMatchObject({
       type: "browser_navigate",

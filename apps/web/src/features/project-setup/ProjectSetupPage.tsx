@@ -1,15 +1,13 @@
-import type { Project } from "@tpc/shared";
-import { buildAiImportManifest, decodeImportPayload } from "@tpc/shared";
+import type { PlanDraftInput, Project } from "@tpc/shared";
+import { buildAiImportManifest, decodePlanDraftPayload } from "@tpc/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client.js";
-import { countTasks } from "../ai-assist/importLogic.js";
 import { buildNewProjectPrompt } from "./buildNewProjectPrompt.js";
 import "./setup.css";
 
 /**
  * 新規プロジェクト作成直後のAIタスク生成セットアップ画面。
- * AIがWeb検索・ブラウジングで ?payload= を付けてアクセスすると自動取り込みする。
  */
 export default function ProjectSetupPage() {
   const navigate = useNavigate();
@@ -24,16 +22,21 @@ export default function ProjectSetupPage() {
   const [importing, setImporting] = useState(false);
   const [waiting, setWaiting] = useState(true);
 
-  const importTasks = useCallback(
-    async (tasks: Parameters<typeof api.createTasksBulk>[1]) => {
+  const importPlan = useCallback(
+    async (draft: PlanDraftInput) => {
       if (!projectId) return;
       setImporting(true);
       setError(null);
       try {
-        await api.createTasksBulk(projectId, tasks);
-        const count = countTasks(tasks);
+        const summary = await api.importPlanDraft(projectId, draft);
         setWaiting(false);
-        setMessage(`${count}件のタスクを取り込みました。WBSで確認できます。`);
+        const depNote =
+          summary.dependencies.failed > 0
+            ? `（依存関係: 成功${summary.dependencies.succeeded} / 失敗${summary.dependencies.failed}）`
+            : "";
+        setMessage(
+          `フル計画を取り込みました: タスク${summary.tasksCreated}件、依存${summary.dependencies.succeeded}件、マイルストーン${summary.milestones}件、リスク${summary.risks}件、関係者${summary.stakeholders}件${depNote}`,
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "取り込みに失敗しました");
       } finally {
@@ -63,18 +66,18 @@ export default function ProjectSetupPage() {
     payloadHandled.current = true;
     setSearchParams({}, { replace: true });
     try {
-      const tasks = decodeImportPayload(payload);
-      void importTasks(tasks);
+      const draft = decodePlanDraftPayload(payload);
+      void importPlan(draft);
     } catch (e) {
       setError(e instanceof Error ? e.message : "取り込みデータの解析に失敗しました");
     }
-  }, [projectId, searchParams, setSearchParams, importTasks]);
+  }, [projectId, searchParams, setSearchParams, importPlan]);
 
   const copyPrompt = async () => {
     try {
       await navigator.clipboard.writeText(prompt);
       setMessage(
-        "プロンプトをコピーしました。AIに貼り付けて、Web検索でタスクを送信させてください。",
+        "プロンプトをコピーしました。AIに貼り付けて、Web検索でフル計画を送信させてください。",
       );
       setError(null);
     } catch {
@@ -96,23 +99,24 @@ export default function ProjectSetupPage() {
 
   return (
     <section className="card">
-      <h2>AIでタスクを生成する</h2>
+      <h2>AIでプロジェクト計画を生成する</h2>
       <p className="muted">
         プロジェクト「{project?.name ?? "読み込み中…"}
-        」の概要に基づき、生成AIへWBSドラフトを依頼するプロンプトです。
+        」の概要に基づき、WBS・依存関係・マイルストーン・リスク・関係者を含むフル計画を生成AIへ依頼します。
       </p>
       <ol className="setup-steps">
         <li>下のプロンプトをコピーして、ChatGPT等の生成AIに貼り付けて送信する</li>
         <li>
-          AIが<strong>Web検索・ブラウジング</strong>で取り込みURLへアクセスし、タスクを自動登録する
+          AIが<strong>Web検索・ブラウジング</strong>
+          で取り込みURLへアクセスし、フル計画を自動登録する
         </li>
-        <li>WBSタブで内容を確認・調整する</li>
+        <li>WBS・ネットワーク図・ガント・登録簿で内容を確認・調整する</li>
       </ol>
 
       {waiting && !importing && !message && (
         <p className="badge setup-waiting">AIからの取り込みを待っています…</p>
       )}
-      {importing && <p className="badge">タスクを取り込み中…</p>}
+      {importing && <p className="badge">フル計画を取り込み中…</p>}
       {error && <p className="error">{error}</p>}
       {message && <p className="badge">{message}</p>}
 
@@ -121,13 +125,29 @@ export default function ProjectSetupPage() {
           プロンプトをコピー
         </button>
         {projectId && message && (
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => navigate(`/projects/${projectId}`)}
-          >
-            WBSを開く
-          </button>
+          <>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => navigate(`/projects/${projectId}`)}
+            >
+              WBSを開く
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => navigate(`/projects/${projectId}/network`)}
+            >
+              ネットワーク図
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => navigate(`/projects/${projectId}/registers`)}
+            >
+              登録簿
+            </button>
+          </>
         )}
       </div>
 
@@ -142,7 +162,7 @@ export default function ProjectSetupPage() {
               </a>
             </li>
             <li>
-              <strong>タスク登録 API:</strong> POST{" "}
+              <strong>フル計画登録 API:</strong> POST{" "}
               {manifest.methods[0]?.type === "http_post" ? manifest.methods[0].url : ""}
             </li>
             <li>
@@ -158,9 +178,9 @@ export default function ProjectSetupPage() {
       <textarea
         readOnly
         value={prompt}
-        rows={14}
+        rows={16}
         style={{ width: "100%", fontFamily: "monospace", fontSize: 12, marginTop: 12 }}
-        aria-label="AIタスク生成プロンプト"
+        aria-label="AIフル計画生成プロンプト"
       />
 
       <div className="row setup-links" style={{ marginTop: 16 }}>

@@ -10,6 +10,7 @@ import baselineRoutes from "./routes/baselines.js";
 import dependencyRoutes from "./routes/dependencies.js";
 import exportRoutes from "./routes/export.js";
 import milestoneRoutes from "./routes/milestones.js";
+import planDraftRoutes from "./routes/plan-draft.js";
 import projectRoutes from "./routes/projects.js";
 import riskRoutes from "./routes/risks.js";
 import stakeholderRoutes from "./routes/stakeholders.js";
@@ -40,6 +41,7 @@ export async function buildApp(db: Db): Promise<FastifyInstance> {
   app.get("/api/health", async () => ({ ok: true }));
 
   await app.register(projectRoutes, { db });
+  await app.register(planDraftRoutes, { db });
   await app.register(taskRoutes, { db });
   await app.register(dependencyRoutes, { db });
   await app.register(milestoneRoutes, { db });

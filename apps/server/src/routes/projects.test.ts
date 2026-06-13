@@ -117,8 +117,9 @@ describe("projects API", () => {
       const manifest = res.json();
       expect(manifest.project.id).toBe(project.id);
       expect(manifest.methods[0].url).toBe(
-        `http://localhost:3001/api/projects/${project.id}/tasks/bulk`,
+        `http://localhost:3001/api/projects/${project.id}/plan-draft-import`,
       );
+      expect(manifest.methods[0].type).toBe("http_post");
     });
   });
 

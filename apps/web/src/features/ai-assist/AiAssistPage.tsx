@@ -17,8 +17,10 @@ import { type PromptPurpose, buildPrompt } from "./prompts.js";
 const PURPOSES: { id: PromptPurpose; label: string }[] = [
   { id: "wbs_draft", label: "WBSドラフト" },
   { id: "task_breakdown", label: "タスク分解" },
-  { id: "risk_identify", label: "リスク洗い出し" },
   { id: "dependencies", label: "依存関係提案" },
+  { id: "milestones", label: "マイルストーン提案" },
+  { id: "risk_identify", label: "リスク洗い出し" },
+  { id: "stakeholders", label: "関係者提案" },
 ];
 
 export default function AiAssistPage() {
@@ -96,6 +98,22 @@ export default function AiAssistPage() {
             preview.risks,
             (risk) => risk.title,
             (risk) => api.createRisk(projectId, risk),
+          ),
+        );
+      } else if (preview.kind === "milestones") {
+        setSummary(
+          await importOneByOne(
+            preview.milestones,
+            (ms) => ms.name,
+            (ms) => api.createMilestone(projectId, ms),
+          ),
+        );
+      } else if (preview.kind === "stakeholders") {
+        setSummary(
+          await importOneByOne(
+            preview.stakeholders,
+            (sh) => sh.name,
+            (sh) => api.createStakeholder(projectId, sh),
           ),
         );
       } else {
@@ -306,6 +324,37 @@ export default function AiAssistPage() {
                     <span className="muted">
                       （{d.type ?? "FS"}
                       {d.lagDays ? ` / ラグ${d.lagDays}日` : ""}）
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {preview.kind === "milestones" && (
+            <>
+              <p>追加されるマイルストーン: {preview.milestones.length}件</p>
+              <ul>
+                {preview.milestones.map((ms, i) => (
+                  <li key={`${ms.name}-${i}`}>
+                    {ms.name}
+                    <span className="muted">
+                      （期限: {ms.dueDate} / 状態: {ms.status ?? "pending"}）
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {preview.kind === "stakeholders" && (
+            <>
+              <p>追加される関係者: {preview.stakeholders.length}件</p>
+              <ul>
+                {preview.stakeholders.map((sh, i) => (
+                  <li key={`${sh.name}-${i}`}>
+                    {sh.name}
+                    <span className="muted">
+                      （{sh.role ?? "役割未設定"} / 影響力: {sh.influence ?? "medium"} / 関心:{" "}
+                      {sh.interest ?? "medium"}）
                     </span>
                   </li>
                 ))}

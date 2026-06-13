@@ -1,12 +1,16 @@
 import type { Project } from "@tpc/shared";
-import { buildAiImportManifest } from "@tpc/shared";
+import {
+  FULL_PROJECT_PLAN_SCHEMA,
+  buildAiImportManifest,
+  buildPromptGuidelinesBlock,
+} from "@tpc/shared";
 
 /**
- * 新規プロジェクト作成直後にAIへ渡すWBSドラフト生成プロンプトを組み立てる。
+ * 新規プロジェクト作成直後にAIへ渡すフル計画生成プロンプトを組み立てる。
  */
 export function buildNewProjectPrompt(project: Project, appOrigin: string): string {
   const manifestUrl = `${appOrigin}/api/projects/${project.id}/ai-import-manifest`;
-  const bulkUrl = `${appOrigin}/api/projects/${project.id}/tasks/bulk`;
+  const planImportUrl = `${appOrigin}/api/projects/${project.id}/plan-draft-import`;
   const setupUrl = `${appOrigin}/projects/${project.id}/setup`;
   const manifest = buildAiImportManifest(project, appOrigin);
 
@@ -23,27 +27,28 @@ export function buildNewProjectPrompt(project: Project, appOrigin: string): stri
 
   return [
     "あなたはプロジェクトマネジメントのアシスタントです。",
-    "以下のプロジェクト概要と詳細に基づき、実行可能な階層WBS（フェーズ→ワークパッケージ）のドラフトを作成してください。",
-    "各タスクには現実的な所要日数（durationDays）を付与し、開始日を考慮した全体スケジュール感が伝わる構成にしてください。",
+    "以下のプロジェクト概要と詳細に基づき、WBS・依存関係・マイルストーン・リスク・関係者を含むフル計画ドラフトを作成してください。",
     "",
     "【プロジェクト情報】",
     projectInfo,
     "",
-    "【出力形式】次のスキーマに従ったJSONオブジェクトを1つだけ生成してください。",
-    manifest.outputSchema,
+    buildPromptGuidelinesBlock(),
     "",
-    "【重要：タスクの登録（必須）— Web検索・ブラウジングを使用すること】",
-    "WBS生成後、ユーザーにJSONを貼り付けさせるのではなく、必ずWeb検索またはブラウジング機能を使いタスクをブラウザアプリへ直接送信してください。",
+    "【出力形式】次のスキーマに従ったJSONオブジェクトを1つだけ生成してください。",
+    FULL_PROJECT_PLAN_SCHEMA,
+    "",
+    "【重要：フル計画の登録（必須）— Web検索・ブラウジングを使用すること】",
+    "生成後、ユーザーにJSONを貼り付けさせるのではなく、必ずWeb検索またはブラウジング機能を使いフル計画をブラウザアプリへ直接送信してください。",
     "ユーザーへの返答に生JSONは含めないでください。登録完了のみ報告してください。",
     "",
     "手順:",
     `1. Web検索・ブラウジングで取り込み仕様を確認: ${manifestUrl}`,
-    "2. 次のいずれかでタスクを登録:",
-    `   方法A（推奨）: POST ${bulkUrl}`,
+    "2. 次のいずれかでフル計画を登録:",
+    `   方法A（推奨）: POST ${planImportUrl}`,
     "        Header: Content-Type: application/json",
-    '        Body: {"tasks": [生成した階層タスク配列]}',
-    "   方法B: ブラウザで次のURLを開く（payload に URLエンコードした JSON を付与）:",
-    `        ${setupUrl}?payload={encodeURIComponent(JSON.stringify({tasks:[...]}))}`,
+    '        Body: {"tasks":[...],"dependencies":[...],"milestones":[...],"risks":[...],"stakeholders":[...]}',
+    "   方法B: ブラウザで次のURLを開く（payload に URLエンコードしたフル計画JSON を付与）:",
+    `        ${setupUrl}?payload={encodeURIComponent(JSON.stringify(フル計画))}`,
     "",
     "【取り込み仕様（参照用）】",
     JSON.stringify(manifest, null, 2),

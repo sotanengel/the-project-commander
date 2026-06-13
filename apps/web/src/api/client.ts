@@ -7,6 +7,7 @@ import type {
   ExportBundle,
   Milestone,
   MilestoneCreateInput,
+  PlanDraftInput,
   Project,
   ProjectCreateInput,
   ProjectPlan,
@@ -78,6 +79,18 @@ export const api = {
     post<Task>(`/api/projects/${projectId}/tasks`, input),
   createTasksBulk: (projectId: string, tasks: BulkTaskInput[]) =>
     post<Task[]>(`/api/projects/${projectId}/tasks/bulk`, { tasks }),
+  importPlanDraft: (projectId: string, draft: PlanDraftInput) =>
+    post<{
+      tasksCreated: number;
+      dependencies: {
+        succeeded: number;
+        failed: number;
+        failures: { label: string; reason: string }[];
+      };
+      milestones: number;
+      risks: number;
+      stakeholders: number;
+    }>(`/api/projects/${projectId}/plan-draft-import`, draft),
   updateTask: (id: string, input: TaskUpdateInput) => put<Task>(`/api/tasks/${id}`, input),
   deleteTask: (id: string) => del<{ ok: true }>(`/api/tasks/${id}`),
 
