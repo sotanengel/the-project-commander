@@ -1,4 +1,4 @@
-import { createCliAgentService } from "./agent/index.js";
+import { createLocalAgentService } from "./agent/index.js";
 import { buildApp } from "./app.js";
 import { createDb } from "./db.js";
 
@@ -7,14 +7,13 @@ const DB_PATH = process.env.DB_PATH ?? "./data/tpc.db";
 
 async function main() {
   const db = createDb(DB_PATH);
-  const cliAgent = createCliAgentService();
-  await cliAgent.init();
-  const app = await buildApp(db, { cliAgent });
+  const localAgent = createLocalAgentService();
+  await localAgent.init();
+  const app = await buildApp(db, { localAgent });
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
   } catch (err) {
     app.log.error(err);
-    await cliAgent.stop();
     process.exit(1);
   }
 }

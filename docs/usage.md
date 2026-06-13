@@ -157,26 +157,58 @@ curl -s -X POST http://localhost:3000/mcp \
 
 Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP として登録してください。
 
-## コメント投稿時の AI 変更提案（Claude Code CLI）
+## コメント投稿時のローカル LLM 変更提案
 
-タスク詳細の **進捗コメント** を追加すると、Claude Code CLI が MCP 経由で計画を参照し、タスク・依存・マイルストーン等の変更提案をポップアップ表示します。提案ごとに **反映** ボタンで計画に適用できます（自動反映はしません）。
+タスク詳細の **進捗コメント** を追加すると、ローカル LLM（Ollama）が計画を分析し、タスク・依存・マイルストーン等の変更提案をコメント入力欄の下にカード表示します。提案ごとに **反映** ボタンで計画に適用できます（自動反映はしません）。
 
-### 前提
+### `pnpm start` での利用（推奨）
 
-1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストールし、`claude auth login` 等でログイン済み
-2. **Docker 起動（`pnpm start`）** 時は、ホスト上で Claude host agent が自動起動し、コンテナから MCP 経由で AI 提案します（追加設定不要）
-3. **ローカル開発（`pnpm dev`）** ではサーバーが直接 `claude` を実行します
-4. 無効化する場合のみ `.env` に `TPC_CLI_AGENT=off`
+`pnpm start` は **アプリ + Ollama + モデル導入** を Docker Compose でまとめて起動します。Ollama の手動インストールは不要です。
 
-`pnpm start` 実行時に `claude` が PATH にあると、ポート **9477** で host agent が起動します。分析ごとに `/reset` 後、host agent 経由で MCP（公開ポート `/mcp`）に接続します。
+```bash
+cp .env.example .env   # TG_AUTH_TOKEN を設定
+pnpm start
+```
 
-### 操作
+- 初回起動時のみ Ollama モデルのダウンロードが走ります（数分かかる場合あり）
+- **RAM 12 GiB 未満**の PC は自動で `qwen2.5:3b-instruct`、**12 GiB 以上**は `qwen2.5:7b-instruct` を選びます（`TPC_OLLAMA_MODEL` で上書き可）
+- CPU のみの PC では分析に 1〜3 分かかることがあります（タイムアウトは 10 分）
+- 2 回目以降はキャッシュ済みモデルをそのまま利用します
+- 無効化: `.env` に `TPC_LOCAL_AGENT=off`
+- 低スペック PC: `TPC_OLLAMA_MODEL=qwen2.5:3b`
+
+### ローカル開発（`pnpm dev`）
+
+`pnpm dev` も、ホストに Ollama が無い場合は **Docker Compose で Ollama を自動起動**し、モデルを導入します（`docker` 必須）。
+
+```bash
+pnpm dev
+```
+
+手動でホスト Ollama を使う場合:
+
+```bash
+ollama serve
+ollama pull qwen2.5:7b-instruct
+pnpm dev
+```
 
 1. タスク詳細ページでコメントを入力し **コメントを追加**
 2. 保存成功後、AI が分析（数十秒かかる場合あり）
 3. 提案カードの **反映** で変更を適用、**スキップ** で個別に dismiss
 
-CLI 未設定時もコメント保存は成功します（AI 提案のみ省略）。
+Ollama 未起動時もコメント保存は成功します（AI 提案のみ省略）。
+
+### モデル・プロバイダの変更
+
+| 環境変数 | 説明 |
+|----------|------|
+| `TPC_OLLAMA_MODEL` | Ollama モデル名（デフォルト `qwen2.5:3b-instruct`。高精度なら `qwen2.5:7b-instruct`） |
+| `TPC_LOCAL_AGENT_TIMEOUT_MS` | 分析タイムアウト（デフォルト 600000 = 10 分） |
+| `TPC_OLLAMA_BASE_URL` | Ollama API の URL |
+| `TPC_LOCAL_AGENT=openai_compatible` | LM Studio 等の OpenAI 互換 API を利用 |
+| `TPC_OPENAI_COMPATIBLE_URL` | 互換 API のベース URL（例: `http://127.0.0.1:1234/v1`） |
+| `TPC_OPENAI_COMPATIBLE_MODEL` | 互換 API のモデル名 |
 
 ## AIアシスト（プロンプト方式）
 

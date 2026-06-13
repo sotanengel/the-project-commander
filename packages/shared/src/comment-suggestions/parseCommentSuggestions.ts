@@ -1,8 +1,22 @@
 import type { ProjectPlan } from "../types.js";
 import { extractJsonFromAiResponse } from "./extractJson.js";
-import { type CommentSuggestion, CommentSuggestionsResponseSchema } from "./schemas.js";
+import { extractSuggestionItems, normalizeSuggestionRaw } from "./normalizeCommentSuggestions.js";
+import { resolveSuggestionIdsInRaw } from "./resolveSuggestionIds.js";
+import { type CommentSuggestion, CommentSuggestionSchema } from "./schemas.js";
 
 export { CommentSuggestionParseError } from "./extractJson.js";
+
+export interface CommentSuggestionsParseMeta {
+  rawItemCount: number;
+  parsedCount: number;
+  validatedCount: number;
+  filteredCount: number;
+}
+
+export interface CommentSuggestionsParseResult {
+  suggestions: CommentSuggestion[];
+  meta: CommentSuggestionsParseMeta;
+}
 
 function taskIds(plan: ProjectPlan): Set<string> {
   return new Set(plan.tasks.map((t) => t.id));
@@ -39,18 +53,54 @@ export function validateSuggestionsAgainstPlan(
   });
 }
 
-/** AI 応答テキストを CommentSuggestionsResponse にパースする */
-export function parseCommentSuggestionsResponse(text: string): CommentSuggestion[] {
+function parseItemsFromText(text: string, plan?: ProjectPlan): CommentSuggestionsParseResult {
   const raw = extractJsonFromAiResponse(text);
-  const parsed = CommentSuggestionsResponseSchema.parse(raw);
-  return parsed.suggestions;
+  const items = extractSuggestionItems(raw);
+  const parsed: CommentSuggestion[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    let normalized = normalizeSuggestionRaw(items[i], i);
+    if (plan) {
+      normalized = resolveSuggestionIdsInRaw(normalized, plan);
+    }
+    const result = CommentSuggestionSchema.safeParse(normalized);
+    if (result.success) {
+      parsed.push(result.data);
+    }
+  }
+
+  return {
+    suggestions: parsed,
+    meta: {
+      rawItemCount: items.length,
+      parsedCount: parsed.length,
+      validatedCount: parsed.length,
+      filteredCount: items.length - parsed.length,
+    },
+  };
 }
 
-/** パース + 計画に対する ID 検証 */
+/** AI 応答テキストを CommentSuggestionsResponse にパースする */
+export function parseCommentSuggestionsResponse(text: string): CommentSuggestion[] {
+  return parseItemsFromText(text).suggestions;
+}
+
+/** パース + 計画に対する ID 検証（メタ情報付き） */
 export function parseAndValidateCommentSuggestions(
   text: string,
   plan: ProjectPlan,
-): CommentSuggestion[] {
-  const suggestions = parseCommentSuggestionsResponse(text);
-  return validateSuggestionsAgainstPlan(suggestions, plan);
+): CommentSuggestionsParseResult {
+  const { suggestions: parsed, meta } = parseItemsFromText(text, plan);
+  const validated = validateSuggestionsAgainstPlan(parsed, plan);
+  const planFiltered = parsed.length - validated.length;
+
+  return {
+    suggestions: validated,
+    meta: {
+      rawItemCount: meta.rawItemCount,
+      parsedCount: meta.parsedCount,
+      validatedCount: validated.length,
+      filteredCount: meta.filteredCount + planFiltered,
+    },
+  };
 }

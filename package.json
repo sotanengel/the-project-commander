@@ -8,7 +8,7 @@
     "dev": "bash scripts/dev.sh",
     "build": "pnpm -r build",
     "test": "pnpm -r test && pnpm test:scripts",
-    "test:scripts": "bash scripts/docker-up-open.test.sh",
+    "test:scripts": "bash scripts/docker-up-open.test.sh && bash scripts/ollama-pull.test.sh && bash scripts/resolve-ollama-model.test.sh",
     "test:coverage": "vitest run --coverage",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",

@@ -1,98 +1,65 @@
-import type { CommentSuggestion } from "@tpc/shared";
+import type { CommentSuggestion, CommentSuggestionsParseMeta } from "@tpc/shared";
 import type { Db } from "../db.js";
-import { type AnalyzeCommentInput, analyzeComment } from "./analyzeComment.js";
-import type { ClaudeAnalysisSession } from "./claudeCliSession.js";
-import { ClaudeCliSession } from "./claudeCliSession.js";
-import { ClaudeHostClientSession } from "./claudeHostClientSession.js";
-import { type CliAgentStatus, checkCliAgentStatus, readCliAgentEnv } from "./cliAgentStatus.js";
+import {
+  type AnalyzeCommentInput,
+  type AnalyzeCommentResult,
+  analyzeComment,
+} from "./analyzeComment.js";
+import { createLlmProvider } from "./createProvider.js";
+import { readLocalAgentEnv } from "./env.js";
+import type { AgentStatus, LlmProvider } from "./types.js";
 
-export interface CliAgentService {
+export interface LocalAgentService {
   init(): Promise<void>;
-  stop(): Promise<void>;
-  getStatus(): CliAgentStatus;
-  analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<CommentSuggestion[]>;
+  getStatus(): AgentStatus;
+  analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<AnalyzeCommentResult>;
 }
 
-export class DisabledCliAgentService implements CliAgentService {
-  getStatus(): CliAgentStatus {
-    return {
-      provider: "off",
-      ready: false,
-      mcpConnected: false,
-      message: "TPC_CLI_AGENT が無効です",
-    };
-  }
+export class DisabledLocalAgentService implements LocalAgentService {
+  private readonly status: AgentStatus = {
+    provider: "off",
+    ready: false,
+    message: "ローカル LLM エージェントが無効です",
+  };
 
   async init(): Promise<void> {}
 
-  async stop(): Promise<void> {}
-
-  async analyzeComment(): Promise<CommentSuggestion[]> {
-    throw new Error("CLI エージェントが無効です");
-  }
-}
-
-export class ClaudeCliAgentService implements CliAgentService {
-  private status: CliAgentStatus = {
-    provider: "claude",
-    ready: false,
-    mcpConnected: false,
-  };
-  private session: ClaudeAnalysisSession | null = null;
-
-  constructor(private readonly env = readCliAgentEnv()) {}
-
-  async init(): Promise<void> {
-    this.status = await checkCliAgentStatus({
-      provider: this.env.provider,
-      claudeBin: this.env.claudeBin,
-      claudeHostUrl: this.env.claudeHostUrl,
-    });
-    if (!this.status.ready) return;
-
-    if (this.env.claudeHostUrl) {
-      this.session = new ClaudeHostClientSession({
-        hostAgentUrl: this.env.claudeHostUrl,
-        mcpPublicUrl: this.env.mcpPublicUrl,
-        timeoutMs: this.env.timeoutMs,
-        skipPermissions: this.env.skipPermissions,
-      });
-    } else {
-      this.session = new ClaudeCliSession({
-        claudeBin: this.env.claudeBin,
-        port: this.env.port,
-        timeoutMs: this.env.timeoutMs,
-        skipPermissions: this.env.skipPermissions,
-      });
-    }
-
-    await this.session.start();
-    this.status = {
-      ...this.status,
-      mcpConnected: this.session.isStarted(),
-    };
-  }
-
-  async stop(): Promise<void> {
-    await this.session?.stop();
-    this.session = null;
-  }
-
-  getStatus(): CliAgentStatus {
+  getStatus(): AgentStatus {
     return this.status;
   }
 
-  async analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<CommentSuggestion[]> {
-    if (!this.status.ready || !this.session) {
-      throw new Error("CLI エージェントが利用できません");
-    }
-    return analyzeComment(db, this.session, input);
+  async analyzeComment(): Promise<AnalyzeCommentResult> {
+    throw new Error("ローカル LLM エージェントが無効です");
   }
 }
 
-export function createCliAgentService(env = readCliAgentEnv()): CliAgentService {
-  if (env.provider === "off") {
-    return new DisabledCliAgentService();
+export class ActiveLocalAgentService implements LocalAgentService {
+  private status: AgentStatus = { provider: "off", ready: false };
+  private provider: LlmProvider | null = null;
+
+  constructor(private readonly env = readLocalAgentEnv()) {}
+
+  async init(): Promise<void> {
+    const result = await createLlmProvider({ env: this.env });
+    this.provider = result.provider;
+    this.status = result.status;
   }
-  return new ClaudeCliAgentService(env);
+
+  getStatus(): AgentStatus {
+    return this.status;
+  }
+
+  async analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<AnalyzeCommentResult> {
+    if (!this.status.ready || !this.provider) {
+      throw new Error("ローカル LLM エージェントが利用できません");
+    }
+    return analyzeComment(db, this.provider, input);
+  }
+}
+
+export function createLocalAgentService(env = readLocalAgentEnv()): LocalAgentService {
+  if (env.mode === "off") {
+    return new DisabledLocalAgentService();
+  }
+  return new ActiveLocalAgentService(env);
 }

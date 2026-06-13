@@ -1,23 +1,23 @@
 import { CommentSuggestionAnalyzeInputSchema } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { AnalyzeCommentError } from "../agent/analyzeComment.js";
-import type { CliAgentService } from "../agent/index.js";
+import type { LocalAgentService } from "../agent/index.js";
 import type { Db } from "../db.js";
 import { getTask } from "../repositories/task.js";
 
 export default async function commentSuggestionRoutes(
   app: FastifyInstance,
-  { db, cliAgent }: { db: Db; cliAgent: CliAgentService },
+  { db, localAgent }: { db: Db; localAgent: LocalAgentService },
 ) {
-  app.get("/api/agent/status", async () => cliAgent.getStatus());
+  app.get("/api/agent/status", async () => localAgent.getStatus());
 
   app.post<{ Params: { taskId: string } }>(
     "/api/tasks/:taskId/comment-suggestions",
     async (req, reply) => {
-      const status = cliAgent.getStatus();
+      const status = localAgent.getStatus();
       if (!status.ready) {
         return reply.code(503).send({
-          error: status.message ?? "CLI エージェントが利用できません",
+          error: status.message ?? "ローカル LLM エージェントが利用できません",
         });
       }
 
@@ -32,19 +32,16 @@ export default async function commentSuggestionRoutes(
       }
 
       try {
-        const suggestions = await cliAgent.analyzeComment(db, {
+        const { suggestions, meta } = await localAgent.analyzeComment(db, {
           projectId: body.projectId,
           taskId: req.params.taskId,
           commentBody: body.commentBody,
         });
-        return { suggestions };
+        return { suggestions, meta };
       } catch (e) {
         if (e instanceof AnalyzeCommentError) {
           if (e.kind === "not_found") {
             return reply.code(404).send({ error: e.message });
-          }
-          if (e.kind === "parse_failed") {
-            return reply.code(502).send({ error: e.message });
           }
           return reply.code(502).send({ error: e.message });
         }

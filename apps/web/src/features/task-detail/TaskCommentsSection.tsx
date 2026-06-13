@@ -1,7 +1,7 @@
 import type { CommentSuggestion } from "@tpc/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "../../api/client.js";
-import CommentSuggestionDialog from "./CommentSuggestionDialog.js";
+import CommentSuggestionCards from "./CommentSuggestionCards.js";
 import { applySuggestion } from "./commentSuggestionModel.js";
 import { formatCommentTimeLabels, validateCommentBody } from "./taskCommentModel.js";
 
@@ -31,7 +31,7 @@ export default function TaskCommentsSection({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [analyzing, setAnalyzing] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [suggestionsVisible, setSuggestionsVisible] = useState(false);
   const [suggestions, setSuggestions] = useState<CommentSuggestion[]>([]);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyErrors, setApplyErrors] = useState<Record<string, string>>({});
@@ -57,19 +57,25 @@ export default function TaskCommentsSection({
     setAnalyzing(true);
     setAgentNotice(null);
     setApplyErrors({});
-    setDialogOpen(true);
+    setSuggestionsVisible(true);
     try {
       const result = await api.analyzeCommentSuggestions(taskId, { projectId, commentBody });
       setSuggestions(result.suggestions);
       if (result.suggestions.length === 0) {
-        setAgentNotice("AI からの変更提案はありませんでした。");
+        if (result.meta && result.meta.parsedCount > 0 && result.meta.validatedCount === 0) {
+          setAgentNotice(
+            "計画と一致する提案がありませんでした（タスク ID の不一致など）。コメントを具体化して再試行してください。",
+          );
+        } else {
+          setAgentNotice("変更提案はありませんでした。");
+        }
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 503) {
-        setDialogOpen(false);
+        setSuggestionsVisible(false);
         setAgentNotice(
           e.message ||
-            "AI 提案は現在利用できません。Claude CLI のインストールとサーバー再起動を確認してください。",
+            "ローカル LLM が利用できません。Ollama の起動とモデル取得を確認してください。",
         );
         return;
       }
@@ -126,12 +132,6 @@ export default function TaskCommentsSection({
     setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
   };
 
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setSuggestions([]);
-    setApplyErrors({});
-  };
-
   const startEdit = (comment: (typeof comments)[number]) => {
     setEditingId(comment.id);
     setEditBody(comment.body);
@@ -180,127 +180,127 @@ export default function TaskCommentsSection({
   };
 
   return (
-    <>
-      <section className="task-comments-section" aria-labelledby="task-comments-heading">
-        <header className="task-comments-header">
-          <h2 id="task-comments-heading" className="task-comments-title">
-            進捗コメント
-          </h2>
-          <p className="muted task-comments-lead">進捗状況やメモを時系列で記録します。</p>
-        </header>
+    <section className="task-comments-section" aria-labelledby="task-comments-heading">
+      <header className="task-comments-header">
+        <h2 id="task-comments-heading" className="task-comments-title">
+          進捗コメント
+        </h2>
+        <p className="muted task-comments-lead">進捗状況やメモを時系列で記録します。</p>
+      </header>
 
-        <div className="task-comments-compose">
-          <label htmlFor="task-comment-new">新しいコメント</label>
-          <textarea
-            id="task-comment-new"
-            value={newBody}
-            onChange={(e) => setNewBody(e.target.value)}
-            placeholder="進捗状況やメモを記録してください"
-            rows={3}
-          />
-          <button
-            type="button"
-            className="secondary"
-            disabled={adding || loading || analyzing}
-            onClick={() => void handleAdd()}
-          >
-            {adding ? "追加中…" : analyzing ? "AI 分析中…" : "コメントを追加"}
-          </button>
-        </div>
+      <div className="task-comments-compose">
+        <label htmlFor="task-comment-new">新しいコメント</label>
+        <textarea
+          id="task-comment-new"
+          value={newBody}
+          onChange={(e) => setNewBody(e.target.value)}
+          placeholder="進捗状況やメモを記録してください"
+          rows={3}
+        />
+        <button
+          type="button"
+          className="secondary"
+          disabled={adding || loading || analyzing}
+          onClick={() => void handleAdd()}
+        >
+          {adding ? "追加中…" : analyzing ? "AI 分析中…" : "コメントを追加"}
+        </button>
 
-        {agentNotice && <p className="muted task-comments-agent-notice">{agentNotice}</p>}
+        <CommentSuggestionCards
+          visible={suggestionsVisible}
+          analyzing={analyzing}
+          suggestions={suggestions}
+          notice={agentNotice}
+          onApply={handleApplySuggestion}
+          applyingId={applyingId}
+          applyErrors={applyErrors}
+          onDismiss={handleDismissSuggestion}
+        />
+      </div>
 
-        <div className="task-comments-list-wrap">
-          <h3 className="task-comments-list-heading">履歴</h3>
-          {loading ? (
-            <p className="muted task-comments-empty">読み込み中…</p>
-          ) : comments.length === 0 ? (
-            <p className="muted task-comments-empty">まだコメントはありません</p>
-          ) : (
-            <ol className="task-comments-list">
-              {comments.map((comment) => {
-                const isEditing = editingId === comment.id;
-                const timeLabels = formatCommentTimeLabels(comment.createdAt, comment.updatedAt);
-                return (
-                  <li key={comment.id} className="task-comments-item">
-                    <div className="task-comments-item-meta">
-                      {timeLabels.map((label) => (
-                        <time
-                          key={label}
-                          className="task-comments-time"
-                          dateTime={
-                            label.startsWith("更新:")
-                              ? (comment.updatedAt ?? undefined)
-                              : comment.createdAt
-                          }
+      {agentNotice && !suggestionsVisible && !analyzing && (
+        <p className="muted task-comments-agent-notice">{agentNotice}</p>
+      )}
+
+      <div className="task-comments-list-wrap">
+        <h3 className="task-comments-list-heading">履歴</h3>
+        {loading ? (
+          <p className="muted task-comments-empty">読み込み中…</p>
+        ) : comments.length === 0 ? (
+          <p className="muted task-comments-empty">まだコメントはありません</p>
+        ) : (
+          <ol className="task-comments-list">
+            {comments.map((comment) => {
+              const isEditing = editingId === comment.id;
+              const timeLabels = formatCommentTimeLabels(comment.createdAt, comment.updatedAt);
+              return (
+                <li key={comment.id} className="task-comments-item">
+                  <div className="task-comments-item-meta">
+                    {timeLabels.map((label) => (
+                      <time
+                        key={label}
+                        className="task-comments-time"
+                        dateTime={
+                          label.startsWith("更新:")
+                            ? (comment.updatedAt ?? undefined)
+                            : comment.createdAt
+                        }
+                      >
+                        {label}
+                      </time>
+                    ))}
+                  </div>
+                  {isEditing ? (
+                    <div className="task-comments-edit">
+                      <textarea
+                        value={editBody}
+                        onChange={(e) => setEditBody(e.target.value)}
+                        rows={3}
+                        aria-label="コメントを編集"
+                      />
+                      <div className="task-comments-item-actions">
+                        <button
+                          type="button"
+                          disabled={savingId === comment.id}
+                          onClick={() => void handleSaveEdit(comment.id)}
                         >
-                          {label}
-                        </time>
-                      ))}
-                    </div>
-                    {isEditing ? (
-                      <div className="task-comments-edit">
-                        <textarea
-                          value={editBody}
-                          onChange={(e) => setEditBody(e.target.value)}
-                          rows={3}
-                          aria-label="コメントを編集"
-                        />
-                        <div className="task-comments-item-actions">
-                          <button
-                            type="button"
-                            disabled={savingId === comment.id}
-                            onClick={() => void handleSaveEdit(comment.id)}
-                          >
-                            {savingId === comment.id ? "保存中…" : "保存"}
-                          </button>
-                          <button type="button" className="secondary" onClick={cancelEdit}>
-                            キャンセル
-                          </button>
-                        </div>
+                          {savingId === comment.id ? "保存中…" : "保存"}
+                        </button>
+                        <button type="button" className="secondary" onClick={cancelEdit}>
+                          キャンセル
+                        </button>
                       </div>
-                    ) : (
-                      <>
-                        <p className="task-comments-body">{comment.body}</p>
-                        <div className="task-comments-item-actions">
-                          <button
-                            type="button"
-                            className="secondary"
-                            onClick={() => startEdit(comment)}
-                          >
-                            編集
-                          </button>
-                          <button
-                            type="button"
-                            className="danger"
-                            disabled={deletingId === comment.id}
-                            onClick={() => void handleDelete(comment)}
-                          >
-                            {deletingId === comment.id ? "削除中…" : "削除"}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="task-comments-body">{comment.body}</p>
+                      <div className="task-comments-item-actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => startEdit(comment)}
+                        >
+                          編集
+                        </button>
+                        <button
+                          type="button"
+                          className="danger"
+                          disabled={deletingId === comment.id}
+                          onClick={() => void handleDelete(comment)}
+                        >
+                          {deletingId === comment.id ? "削除中…" : "削除"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
 
-        {error && <p className="error">{error}</p>}
-      </section>
-
-      <CommentSuggestionDialog
-        open={dialogOpen}
-        suggestions={suggestions}
-        analyzing={analyzing}
-        onClose={closeDialog}
-        onApply={handleApplySuggestion}
-        applyingId={applyingId}
-        applyErrors={applyErrors}
-        onDismiss={handleDismissSuggestion}
-      />
-    </>
+      {error && <p className="error">{error}</p>}
+    </section>
   );
 }

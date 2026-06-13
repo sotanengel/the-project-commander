@@ -1,22 +1,27 @@
 import type { CommentSuggestion } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { extractClaudePrintResult } from "../agent/claudeCommand.js";
-import type { CliAgentService } from "../agent/index.js";
-import { buildMcpConfigContent } from "../agent/mcpConfig.js";
+import type { LocalAgentService } from "../agent/index.js";
 import { buildApp } from "../app.js";
 import { createDb } from "../db.js";
 
-function mockCliAgent(overrides: Partial<CliAgentService> = {}): CliAgentService {
+function mockLocalAgent(overrides: Partial<LocalAgentService> = {}): LocalAgentService {
   return {
     init: vi.fn(async () => {}),
-    stop: vi.fn(async () => {}),
     getStatus: vi.fn(() => ({
-      provider: "claude" as const,
+      provider: "ollama" as const,
       ready: true,
-      mcpConnected: true,
+      model: "qwen2.5:7b-instruct",
     })),
-    analyzeComment: vi.fn(async () => []),
+    analyzeComment: vi.fn(async () => ({
+      suggestions: [],
+      meta: {
+        rawItemCount: 0,
+        parsedCount: 0,
+        validatedCount: 0,
+        filteredCount: 0,
+      },
+    })),
     ...overrides,
   };
 }
@@ -25,13 +30,13 @@ describe("comment suggestions API", () => {
   let app: FastifyInstance;
   let projectId: string;
   let taskId: string;
-  let cliAgent: CliAgentService;
+  let localAgent: LocalAgentService;
 
   beforeEach(async () => {
     process.env.NODE_ENV = "test";
-    process.env.TPC_CLI_AGENT = "off";
-    cliAgent = mockCliAgent();
-    app = await buildApp(createDb(":memory:"), { cliAgent });
+    process.env.TPC_LOCAL_AGENT = "off";
+    localAgent = mockLocalAgent();
+    app = await buildApp(createDb(":memory:"), { localAgent });
     const projectRes = await app.inject({
       method: "POST",
       url: "/api/projects",
@@ -53,20 +58,19 @@ describe("comment suggestions API", () => {
   it("GET /api/agent/status が状態を返す", async () => {
     const res = await app.inject({ method: "GET", url: "/api/agent/status" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ provider: "claude", ready: true });
+    expect(res.json()).toMatchObject({ provider: "ollama", ready: true });
   });
 
-  it("CLI 未準備時は 503", async () => {
-    cliAgent = mockCliAgent({
-      getStatus: vi.fn((): import("../agent/cliAgentStatus.js").CliAgentStatus => ({
-        provider: "off",
+  it("エージェント未準備時は 503", async () => {
+    localAgent = mockLocalAgent({
+      getStatus: vi.fn(() => ({
+        provider: "off" as const,
         ready: false,
-        mcpConnected: false,
         message: "無効",
       })),
     });
     await app.close();
-    app = await buildApp(createDb(":memory:"), { cliAgent });
+    app = await buildApp(createDb(":memory:"), { localAgent });
     const res = await app.inject({
       method: "POST",
       url: `/api/tasks/${taskId}/comment-suggestions`,
@@ -86,11 +90,19 @@ describe("comment suggestions API", () => {
         changes: { progress: 50 },
       },
     ];
-    cliAgent = mockCliAgent({
-      analyzeComment: vi.fn(async () => suggestions),
+    localAgent = mockLocalAgent({
+      analyzeComment: vi.fn(async () => ({
+        suggestions,
+        meta: {
+          rawItemCount: suggestions.length,
+          parsedCount: suggestions.length,
+          validatedCount: suggestions.length,
+          filteredCount: 0,
+        },
+      })),
     });
     await app.close();
-    app = await buildApp(createDb(":memory:"), { cliAgent });
+    app = await buildApp(createDb(":memory:"), { localAgent });
     const projectRes = await app.inject({
       method: "POST",
       url: "/api/projects",
@@ -120,23 +132,5 @@ describe("comment suggestions API", () => {
       payload: { projectId: "wrong-project", commentBody: "test" },
     });
     expect(res.statusCode).toBe(404);
-  });
-});
-
-describe("mcpConfig", () => {
-  it("PORT を MCP URL に埋め込む", () => {
-    const content = buildMcpConfigContent(3456);
-    expect(content).toContain("http://127.0.0.1:3456/mcp");
-  });
-});
-
-describe("extractClaudePrintResult", () => {
-  it("JSON 出力から result を取り出す", () => {
-    const stdout = JSON.stringify({ type: "result", result: '{"suggestions":[]}' });
-    expect(extractClaudePrintResult(stdout)).toBe('{"suggestions":[]}');
-  });
-
-  it("プレーンテキストも受け付ける", () => {
-    expect(extractClaudePrintResult('{"suggestions":[]}')).toBe('{"suggestions":[]}');
   });
 });
