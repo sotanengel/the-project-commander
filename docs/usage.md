@@ -159,18 +159,37 @@ Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP �
 
 ## コメント投稿時のローカル LLM 変更提案
 
-タスク詳細の **進捗コメント** を追加すると、ローカル LLM（デフォルト: Ollama）が計画を分析し、タスク・依存・マイルストーン等の変更提案をコメント入力欄の下にカード表示します。提案ごとに **反映** ボタンで計画に適用できます（自動反映はしません）。
+タスク詳細の **進捗コメント** を追加すると、ローカル LLM（Ollama）が計画を分析し、タスク・依存・マイルストーン等の変更提案をコメント入力欄の下にカード表示します。提案ごとに **反映** ボタンで計画に適用できます（自動反映はしません）。
 
-### 前提（Ollama）
+### `pnpm start` での利用（推奨）
 
-1. [Ollama](https://ollama.com/) をインストール
-2. モデル取得: `ollama pull qwen2.5:7b-instruct`（推奨。8GB RAM 未満は `qwen2.5:3b` も可）
-3. 起動: `ollama serve`（常駐。macOS アプリから起動する場合は不要）
-4. 無効化する場合のみ `.env` に `TPC_LOCAL_AGENT=off`
+`pnpm start` は **アプリ + Ollama + モデル導入** を Docker Compose でまとめて起動します。Ollama の手動インストールは不要です。
 
-Docker 起動時はホスト上で Ollama を動かし、コンテナから `host.docker.internal:11434` 経由で接続します（`docker-compose.yml` で設定済み）。
+```bash
+cp .env.example .env   # TG_AUTH_TOKEN を設定
+pnpm start
+```
 
-### 操作
+- 初回起動時のみ `qwen2.5:7b-instruct` のダウンロードが走ります（数分かかる場合あり）
+- 2 回目以降はキャッシュ済みモデルをそのまま利用します
+- 無効化: `.env` に `TPC_LOCAL_AGENT=off`
+- 低スペック PC: `TPC_OLLAMA_MODEL=qwen2.5:3b`
+
+### ローカル開発（`pnpm dev`）
+
+`pnpm dev` も、ホストに Ollama が無い場合は **Docker Compose で Ollama を自動起動**し、モデルを導入します（`docker` 必須）。
+
+```bash
+pnpm dev
+```
+
+手動でホスト Ollama を使う場合:
+
+```bash
+ollama serve
+ollama pull qwen2.5:7b-instruct
+pnpm dev
+```
 
 1. タスク詳細ページでコメントを入力し **コメントを追加**
 2. 保存成功後、AI が分析（数十秒かかる場合あり）

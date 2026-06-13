@@ -2,11 +2,57 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=scripts/lib/docker-up-open.sh
 source "${SCRIPT_DIR}/lib/docker-up-open.sh"
 
+ollama_url() {
+  local port="${TPC_OLLAMA_HOST_PORT:-11434}"
+  echo "http://127.0.0.1:${port}"
+}
+
+is_ollama_ready() {
+  local url="$1"
+  curl -fsS "${url}/api/tags" >/dev/null 2>&1
+}
+
+ensure_local_ollama() {
+  if [[ "${TPC_LOCAL_AGENT:-auto}" == "off" ]]; then
+    return 0
+  fi
+
+  local url="${TPC_OLLAMA_BASE_URL:-$(ollama_url)}"
+  if is_ollama_ready "${url}"; then
+    export TPC_OLLAMA_BASE_URL="${url}"
+    return 0
+  fi
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Warning: Ollama が ${url} で応答しません。docker がないため自動起動できません。" >&2
+    echo "  ollama serve && ollama pull qwen2.5:7b-instruct を実行するか、pnpm start を利用してください。" >&2
+    return 0
+  fi
+
+  echo "Ollama を Docker Compose で起動します（初回はモデルダウンロードに数分）..." >&2
+  (
+    cd "${ROOT}"
+    docker compose up -d ollama
+    docker compose run --rm ollama-init
+  )
+
+  url="$(ollama_url)"
+  if is_ollama_ready "${url}"; then
+    export TPC_OLLAMA_BASE_URL="${url}"
+    echo "Ollama ready at ${url}" >&2
+    return 0
+  fi
+
+  echo "Warning: Ollama の起動を確認できませんでした。コメント AI 提案は利用できません。" >&2
+}
+
 main() {
-  load_env_file ".env"
+  load_env_file "${ROOT}/.env"
+  ensure_local_ollama
   local host_port
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
   export PORT="${host_port}"
@@ -18,6 +64,9 @@ main() {
     echo " The Project Commander (dev)"
     echo " Web:  http://localhost:5173"
     echo " API:  http://localhost:${host_port}"
+    if [[ -n "${TPC_OLLAMA_BASE_URL:-}" ]]; then
+      echo " LLM:  ${TPC_OLLAMA_BASE_URL}"
+    fi
     echo " Stop: Ctrl+C"
     echo "=========================================="
     echo ""

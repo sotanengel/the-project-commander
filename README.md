@@ -35,9 +35,11 @@ pnpm lint
 
 ```bash
 cp .env.example .env   # TG_AUTH_TOKEN を設定
-pnpm start             # compose 起動 + 準備完了後にブラウザが開く（3000 使用中は空きポートを自動選択）
+pnpm start             # アプリ + Ollama + モデル導入を compose で起動。準備完了後にブラウザが開く
 # 停止: Ctrl+C
 ```
+
+`pnpm start` ではローカル LLM（Ollama / `qwen2.5:7b-instruct`）も同時に起動します。初回のみモデルダウンロードに数分かかることがあります。
 
 従来どおり手動でも起動できます:
 
