@@ -4,9 +4,12 @@ import fastifyStatic from "@fastify/static";
 import { CycleError } from "@tpc/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import type { LocalAgentService } from "./agent/index.js";
+import { createLocalAgentService } from "./agent/index.js";
 import type { Db } from "./db.js";
 import { registerMcpRoutes } from "./mcp/index.js";
 import baselineRoutes from "./routes/baselines.js";
+import commentSuggestionRoutes from "./routes/commentSuggestions.js";
 import dependencyRoutes from "./routes/dependencies.js";
 import exportRoutes from "./routes/export.js";
 import milestoneRoutes from "./routes/milestones.js";
@@ -17,8 +20,12 @@ import stakeholderRoutes from "./routes/stakeholders.js";
 import taskCommentRoutes from "./routes/taskComments.js";
 import taskRoutes from "./routes/tasks.js";
 
-export async function buildApp(db: Db): Promise<FastifyInstance> {
+export async function buildApp(
+  db: Db,
+  options?: { localAgent?: LocalAgentService },
+): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV !== "test" });
+  const localAgent = options?.localAgent ?? createLocalAgentService();
 
   app.setErrorHandler((error, _req, reply) => {
     if (error instanceof ZodError) {
@@ -45,6 +52,7 @@ export async function buildApp(db: Db): Promise<FastifyInstance> {
   await app.register(planDraftRoutes, { db });
   await app.register(taskRoutes, { db });
   await app.register(taskCommentRoutes, { db });
+  await app.register(commentSuggestionRoutes, { db, localAgent });
   await app.register(dependencyRoutes, { db });
   await app.register(milestoneRoutes, { db });
   await app.register(riskRoutes, { db });

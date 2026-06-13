@@ -157,6 +157,37 @@ curl -s -X POST http://localhost:3000/mcp \
 
 Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP として登録してください。
 
+## コメント投稿時のローカル LLM 変更提案
+
+タスク詳細の **進捗コメント** を追加すると、ローカル LLM（デフォルト: Ollama）が計画を分析し、タスク・依存・マイルストーン等の変更提案をコメント入力欄の下にカード表示します。提案ごとに **反映** ボタンで計画に適用できます（自動反映はしません）。
+
+### 前提（Ollama）
+
+1. [Ollama](https://ollama.com/) をインストール
+2. モデル取得: `ollama pull qwen2.5:7b-instruct`（推奨。8GB RAM 未満は `qwen2.5:3b` も可）
+3. 起動: `ollama serve`（常駐。macOS アプリから起動する場合は不要）
+4. 無効化する場合のみ `.env` に `TPC_LOCAL_AGENT=off`
+
+Docker 起動時はホスト上で Ollama を動かし、コンテナから `host.docker.internal:11434` 経由で接続します（`docker-compose.yml` で設定済み）。
+
+### 操作
+
+1. タスク詳細ページでコメントを入力し **コメントを追加**
+2. 保存成功後、AI が分析（数十秒かかる場合あり）
+3. 提案カードの **反映** で変更を適用、**スキップ** で個別に dismiss
+
+Ollama 未起動時もコメント保存は成功します（AI 提案のみ省略）。
+
+### モデル・プロバイダの変更
+
+| 環境変数 | 説明 |
+|----------|------|
+| `TPC_OLLAMA_MODEL` | Ollama モデル名（例: `qwen2.5:7b-instruct`） |
+| `TPC_OLLAMA_BASE_URL` | Ollama API の URL |
+| `TPC_LOCAL_AGENT=openai_compatible` | LM Studio 等の OpenAI 互換 API を利用 |
+| `TPC_OPENAI_COMPATIBLE_URL` | 互換 API のベース URL（例: `http://127.0.0.1:1234/v1`） |
+| `TPC_OPENAI_COMPATIBLE_MODEL` | 互換 API のモデル名 |
+
 ## AIアシスト（プロンプト方式）
 
 MCP 非対応の ChatGPT 等向け:

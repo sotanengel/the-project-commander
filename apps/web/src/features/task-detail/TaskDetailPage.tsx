@@ -444,9 +444,13 @@ export default function TaskDetailPage() {
         </form>
       </section>
 
-      {!isCreateMode && taskId && view && (
+      {!isCreateMode && projectId && taskId && view && (
         <section className="card task-comments-panel">
-          <TaskCommentsSection taskId={taskId} />
+          <TaskCommentsSection
+            projectId={projectId}
+            taskId={taskId}
+            onSuggestionsApplied={reload}
+          />
         </section>
       )}
     </>

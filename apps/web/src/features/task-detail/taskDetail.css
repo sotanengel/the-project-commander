@@ -280,3 +280,66 @@
   margin: 8px 0 0;
   font-size: 13px;
 }
+
+.task-comments-agent-notice {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.comment-suggestion-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.comment-suggestion-panel-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.comment-suggestion-panel-status {
+  margin: 0;
+  font-size: 13px;
+}
+
+.comment-suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-suggestion-card {
+  margin: 0;
+  padding: 12px;
+}
+
+.comment-suggestion-card-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.comment-suggestion-rationale {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.comment-suggestion-diff {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.comment-suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

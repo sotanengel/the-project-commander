@@ -2,6 +2,8 @@ import type {
   Baseline,
   BaselineCreateInput,
   BulkTaskInput,
+  CommentSuggestion,
+  CommentSuggestionAnalyzeInput,
   Dependency,
   DependencyCreateInput,
   ExportBundle,
@@ -102,6 +104,15 @@ export const api = {
   updateTaskComment: (id: string, input: TaskCommentUpdateInput) =>
     put<TaskComment>(`/api/task-comments/${id}`, input),
   deleteTaskComment: (id: string) => del<{ ok: true }>(`/api/task-comments/${id}`),
+  analyzeCommentSuggestions: (taskId: string, input: CommentSuggestionAnalyzeInput) =>
+    post<{ suggestions: CommentSuggestion[] }>(`/api/tasks/${taskId}/comment-suggestions`, input),
+  getAgentStatus: () =>
+    get<{
+      provider: string;
+      ready: boolean;
+      model?: string;
+      message?: string;
+    }>("/api/agent/status"),
 
   // 依存関係
   listDependencies: (projectId: string) =>

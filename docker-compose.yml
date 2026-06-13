@@ -6,6 +6,10 @@ services:
         TG_AUTH_TOKEN: ${TG_AUTH_TOKEN:-}
     ports:
       - "${TPC_HOST_PORT:-3000}:3000"
+    environment:
+      TPC_OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - tpc-data:/data
     restart: unless-stopped
