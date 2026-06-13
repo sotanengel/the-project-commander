@@ -280,3 +280,83 @@
   margin: 8px 0 0;
   font-size: 13px;
 }
+
+.task-comments-agent-notice {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+/* AI 提案ダイアログ */
+.modal-dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  width: clamp(280px, 90vw, 640px);
+  max-width: 90vw;
+  max-height: 90vh;
+  margin: auto;
+  overflow: visible;
+}
+
+.modal-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal-card {
+  width: 100%;
+  max-height: min(85vh, 720px);
+  overflow-y: auto;
+  margin: 0;
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.modal-title {
+  margin: 0 0 clamp(12px, 2vh, 16px);
+  font-size: clamp(16px, 2.5vw, 18px);
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.comment-suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-suggestion-card {
+  padding: 12px;
+  margin: 0;
+}
+
+.comment-suggestion-card-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.comment-suggestion-rationale {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.comment-suggestion-diff {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 13px;
+  font-family: var(--font-mono, monospace);
+}
+
+.comment-suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

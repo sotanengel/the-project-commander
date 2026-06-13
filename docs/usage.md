@@ -157,6 +157,26 @@ curl -s -X POST http://localhost:3000/mcp \
 
 Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP として登録してください。
 
+## コメント投稿時の AI 変更提案（Claude Code CLI）
+
+タスク詳細の **進捗コメント** を追加すると、Claude Code CLI が MCP 経由で計画を参照し、タスク・依存・マイルストーン等の変更提案をポップアップ表示します。提案ごとに **反映** ボタンで計画に適用できます（自動反映はしません）。
+
+### 前提
+
+1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストール
+2. `claude auth login` 等でログイン済み
+3. `.env` に `TPC_CLI_AGENT=claude` を設定（未設定時は `off` で AI 提案はスキップ）
+
+サーバー起動時に CLI セッションがバックグラウンドで準備され、分析ごとに `/reset` でセッションが初期化されます。MCP 設定（`/mcp` への接続）はサーバーが自動生成するため、手動設定は不要です。
+
+### 操作
+
+1. タスク詳細ページでコメントを入力し **コメントを追加**
+2. 保存成功後、AI が分析（数十秒かかる場合あり）
+3. 提案カードの **反映** で変更を適用、**スキップ** で個別に dismiss
+
+CLI 未設定時もコメント保存は成功します（AI 提案のみ省略）。
+
 ## AIアシスト（プロンプト方式）
 
 MCP 非対応の ChatGPT 等向け:
