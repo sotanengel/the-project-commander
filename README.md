@@ -39,7 +39,7 @@ pnpm start             # アプリ + Ollama + モデル導入を compose で起�
 # 停止: Ctrl+C
 ```
 
-`pnpm start` ではローカル LLM（Ollama）も同時に起動します。搭載 RAM に応じて 3B / 7B を自動選択します。
+`pnpm start` ではローカル LLM（Ollama）も同時に起動します。搭載 **VRAM / RAM** に応じて 3B / 7B を自動選択します。Windows / Linux で NVIDIA GPU がある場合は Docker 経由で GPU 推論を利用します（macOS の `pnpm start` は CPU 推論）。
 
 従来どおり手動でも起動できます:
 

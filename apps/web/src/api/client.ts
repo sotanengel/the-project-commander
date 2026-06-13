@@ -120,6 +120,8 @@ export const api = {
       ready: boolean;
       model?: string;
       message?: string;
+      accelerator?: "cuda" | "cpu" | "none";
+      gpuVramGiB?: number;
     }>("/api/agent/status"),
 
   // 依存関係

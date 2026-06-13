@@ -24,6 +24,8 @@ async function tryOllama(
     baseUrl: resolveOllamaBaseUrl(env),
     model: env.ollamaModel,
     timeoutMs: env.timeoutMs,
+    useGpu: env.useGpu,
+    gpuVramBytes: env.gpuVramBytes,
     fetchImpl,
   });
   const status = await ollama.checkHealth();

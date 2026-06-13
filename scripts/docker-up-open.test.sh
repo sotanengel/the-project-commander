@@ -92,7 +92,12 @@ test_syntax() {
   bash -n "${MAIN}"
   bash -n "${LIB}"
   bash -n "${ROOT}/scripts/dev.sh"
+  bash -n "${ROOT}/scripts/lib/detect-gpu.sh"
   pass "bash syntax check"
+}
+
+test_gpu_compose_override_exists() {
+  assert_file_contains "${ROOT}/docker-compose.gpu.yml" "gpus: all" "docker-compose.gpu.yml enables GPU passthrough"
 }
 
 test_open_browser_with_open_command() {
@@ -317,6 +322,7 @@ EOF
 
 main() {
   run_test "bash syntax check" test_syntax
+  run_test "gpu compose override exists" test_gpu_compose_override_exists
   run_test "open_browser with open command" test_open_browser_with_open_command
   run_test "open_browser without open command" test_open_browser_without_open_command
   run_test "open_browser when open fails" test_open_browser_falls_back_when_open_fails
