@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { validateTaskEdit } from "../wbs/wbsViewModel.js";
+import TaskCommentsSection from "./TaskCommentsSection.js";
 import {
   type TaskDetailView,
   buildCreateModeBreadcrumb,
@@ -233,213 +234,221 @@ export default function TaskDetailPage() {
   const isLeaf = isCreateMode ? true : (view?.isLeaf ?? true);
 
   return (
-    <section className="card task-detail">
-      <header className="task-detail-header">
-        <p className="task-detail-breadcrumb muted">
-          <Link to={`/projects/${projectId}`}>WBS</Link>
-          {" / "}
-          {breadcrumb.join(" / ")}
-        </p>
-        <h1 className="task-detail-title">
-          {title}
-          {isCreateMode && <span className="badge task-detail-draft-badge">下書き</span>}
-        </h1>
-      </header>
+    <>
+      <section className="card task-detail">
+        <header className="task-detail-header">
+          <p className="task-detail-breadcrumb muted">
+            <Link to={`/projects/${projectId}`}>WBS</Link>
+            {" / "}
+            {breadcrumb.join(" / ")}
+          </p>
+          <h1 className="task-detail-title">
+            {title}
+            {isCreateMode && <span className="badge task-detail-draft-badge">下書き</span>}
+          </h1>
+        </header>
 
-      <form
-        className="task-detail-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void handleSave();
-        }}
-      >
-        <div className="task-detail-field">
-          <label htmlFor="task-name">タスク名</label>
-          <input
-            id="task-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={isCreateMode ? "新しい子タスク" : undefined}
-            required
-          />
-        </div>
-
-        <div className="task-detail-field">
-          <label htmlFor="task-description">作業内容</label>
-          <textarea
-            id="task-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="このタスクで行う作業内容を記述してください"
-          />
-        </div>
-
-        <div className="task-detail-field">
-          <label htmlFor="task-assignee">担当</label>
-          <input
-            id="task-assignee"
-            value={assignee}
-            onChange={(e) => setAssignee(e.target.value)}
-            placeholder="未設定の場合は空欄のまま"
-          />
-          <span className="muted" style={{ fontSize: 12 }}>
-            現在: {formatAssignee(assignee)}
-          </span>
-        </div>
-
-        <dl className="task-detail-meta">
-          <div>
-            <dt>所要日数</dt>
-            <dd>
-              {isLeaf ? (
-                <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  style={{ width: 80 }}
-                  aria-label="所要日数"
-                />
-              ) : (
-                `${view?.task.durationDays}日（子タスクから自動集計）`
-              )}
-            </dd>
+        <form
+          className="task-detail-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSave();
+          }}
+        >
+          <div className="task-detail-field">
+            <label htmlFor="task-name">タスク名</label>
+            <input
+              id="task-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={isCreateMode ? "新しい子タスク" : undefined}
+              required
+            />
           </div>
-          <div>
-            <dt>進捗</dt>
-            <dd>
-              {isLeaf ? (
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={progress}
-                  onChange={(e) => setProgress(e.target.value)}
-                  style={{ width: 80 }}
-                  aria-label="進捗"
-                />
-              ) : (
-                `${Math.round(view?.task.progress ?? 0)}%（子タスクから自動集計）`
-              )}
-            </dd>
+
+          <div className="task-detail-field">
+            <label htmlFor="task-description">作業内容</label>
+            <textarea
+              id="task-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="このタスクで行う作業内容を記述してください"
+            />
           </div>
-          {!isCreateMode && view?.schedule && (
+
+          <div className="task-detail-field">
+            <label htmlFor="task-assignee">担当</label>
+            <input
+              id="task-assignee"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              placeholder="未設定の場合は空欄のまま"
+            />
+            <span className="muted" style={{ fontSize: 12 }}>
+              現在: {formatAssignee(assignee)}
+            </span>
+          </div>
+
+          <dl className="task-detail-meta">
+            <div>
+              <dt>所要日数</dt>
+              <dd>
+                {isLeaf ? (
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    style={{ width: 80 }}
+                    aria-label="所要日数"
+                  />
+                ) : (
+                  `${view?.task.durationDays}日（子タスクから自動集計）`
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>進捗</dt>
+              <dd>
+                {isLeaf ? (
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={progress}
+                    onChange={(e) => setProgress(e.target.value)}
+                    style={{ width: 80 }}
+                    aria-label="進捗"
+                  />
+                ) : (
+                  `${Math.round(view?.task.progress ?? 0)}%（子タスクから自動集計）`
+                )}
+              </dd>
+            </div>
+            {!isCreateMode && view?.schedule && (
+              <>
+                <div>
+                  <dt>開始日</dt>
+                  <dd>{view.startDateLabel}</dd>
+                </div>
+                <div>
+                  <dt>終了日</dt>
+                  <dd>{view.finishDateLabel}</dd>
+                </div>
+                <div>
+                  <dt>総フロート</dt>
+                  <dd>{view.schedule.totalFloat}日</dd>
+                </div>
+                <div>
+                  <dt>クリティカル</dt>
+                  <dd className={view.schedule.isCritical ? "task-detail-critical" : undefined}>
+                    {view.schedule.isCritical ? "はい" : "いいえ"}
+                  </dd>
+                </div>
+              </>
+            )}
+          </dl>
+
+          {!isCreateMode && view && (
             <>
-              <div>
-                <dt>開始日</dt>
-                <dd>{view.startDateLabel}</dd>
+              <div className="task-detail-children">
+                <div className="task-detail-children-head">
+                  <h3>子タスク</h3>
+                  <button type="button" className="secondary" onClick={handleAddChild}>
+                    + 子タスクを追加
+                  </button>
+                </div>
+                {view.children.length === 0 ? (
+                  <p className="muted task-detail-empty-deps">子タスクはありません</p>
+                ) : (
+                  <ul>
+                    {view.children.map((t) => (
+                      <li key={t.id}>
+                        <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <div>
-                <dt>終了日</dt>
-                <dd>{view.finishDateLabel}</dd>
-              </div>
-              <div>
-                <dt>総フロート</dt>
-                <dd>{view.schedule.totalFloat}日</dd>
-              </div>
-              <div>
-                <dt>クリティカル</dt>
-                <dd className={view.schedule.isCritical ? "task-detail-critical" : undefined}>
-                  {view.schedule.isCritical ? "はい" : "いいえ"}
-                </dd>
+
+              <div className="task-detail-deps">
+                <div>
+                  <h3>先行タスク</h3>
+                  {view.predecessors.length === 0 ? (
+                    <p className="muted task-detail-empty-deps">なし</p>
+                  ) : (
+                    <ul>
+                      {view.predecessors.map((t) => (
+                        <li key={t.id}>
+                          <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h3>後続タスク</h3>
+                  {view.successors.length === 0 ? (
+                    <p className="muted task-detail-empty-deps">なし</p>
+                  ) : (
+                    <ul>
+                      {view.successors.map((t) => (
+                        <li key={t.id}>
+                          <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </>
           )}
-        </dl>
 
-        {!isCreateMode && view && (
-          <>
-            <div className="task-detail-children">
-              <div className="task-detail-children-head">
-                <h3>子タスク</h3>
-                <button type="button" className="secondary" onClick={handleAddChild}>
-                  + 子タスクを追加
-                </button>
-              </div>
-              {view.children.length === 0 ? (
-                <p className="muted task-detail-empty-deps">子タスクはありません</p>
-              ) : (
-                <ul>
-                  {view.children.map((t) => (
-                    <li key={t.id}>
-                      <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="task-detail-deps">
-              <div>
-                <h3>先行タスク</h3>
-                {view.predecessors.length === 0 ? (
-                  <p className="muted task-detail-empty-deps">なし</p>
-                ) : (
-                  <ul>
-                    {view.predecessors.map((t) => (
-                      <li key={t.id}>
-                        <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div>
-                <h3>後続タスク</h3>
-                {view.successors.length === 0 ? (
-                  <p className="muted task-detail-empty-deps">なし</p>
-                ) : (
-                  <ul>
-                    {view.successors.map((t) => (
-                      <li key={t.id}>
-                        <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {isCreateMode && (
-          <p className="muted task-detail-create-hint">
-            保存するまでタスクは作成されません。キャンセルすると入力内容は破棄されます。
-          </p>
-        )}
-
-        {saveError && <p className="error">{saveError}</p>}
-
-        <div className="task-detail-actions">
-          <button type="submit" disabled={saving || deleting}>
-            {saving ? "保存中…" : "保存"}
-          </button>
-          {isCreateMode ? (
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleCancelCreate}
-              disabled={saving}
-            >
-              キャンセル
-            </button>
-          ) : (
-            <Link to={`/projects/${projectId}`}>WBSへ戻る</Link>
+          {isCreateMode && (
+            <p className="muted task-detail-create-hint">
+              保存するまでタスクは作成されません。キャンセルすると入力内容は破棄されます。
+            </p>
           )}
-          {!isCreateMode && (
-            <button
-              type="button"
-              className="danger"
-              disabled={saving || deleting}
-              onClick={() => void handleDelete()}
-            >
-              {deleting ? "削除中…" : "削除"}
+
+          {saveError && <p className="error">{saveError}</p>}
+
+          <div className="task-detail-actions">
+            <button type="submit" disabled={saving || deleting}>
+              {saving ? "保存中…" : "保存"}
             </button>
-          )}
-        </div>
-      </form>
-    </section>
+            {isCreateMode ? (
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleCancelCreate}
+                disabled={saving}
+              >
+                キャンセル
+              </button>
+            ) : (
+              <Link to={`/projects/${projectId}`}>WBSへ戻る</Link>
+            )}
+            {!isCreateMode && (
+              <button
+                type="button"
+                className="danger"
+                disabled={saving || deleting}
+                onClick={() => void handleDelete()}
+              >
+                {deleting ? "削除中…" : "削除"}
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+      {!isCreateMode && taskId && view && (
+        <section className="card task-comments-panel">
+          <TaskCommentsSection taskId={taskId} />
+        </section>
+      )}
+    </>
   );
 }

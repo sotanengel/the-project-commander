@@ -28,6 +28,7 @@ import { z } from "zod";
 import { type Db, newId } from "../db.js";
 import { loadProjectPlan, projectExists } from "../repositories/project.js";
 import { BulkTaskSchema, createTaskRepository, getTask } from "../repositories/task.js";
+import { listCommentsByProject } from "../repositories/taskComment.js";
 
 function jsonContent(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
@@ -494,6 +495,7 @@ export function createMcpServer(db: Db): McpServer {
           createdAt: row.createdAt,
           ...(JSON.parse(row.data) as { projectDuration: number; tasks: BaselineTask[] }),
         })),
+        taskComments: listCommentsByProject(db, projectId),
       };
       return jsonContent(bundle);
     },

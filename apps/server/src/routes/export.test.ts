@@ -156,6 +156,21 @@ describe("export/import API", () => {
       const snapshotIds = baseline.tasks.map((t) => t.taskId).sort();
       expect(snapshotIds).toEqual([design.id, impl.id, review.id].sort());
     });
+
+    it("タスク進捗コメントを含むバンドルを返す", async () => {
+      const { project, design } = await createFullProject();
+      await app.inject({
+        method: "POST",
+        url: `/api/tasks/${design.id}/comments`,
+        payload: { body: "設計50%完了" },
+      });
+      const bundle = await exportProject(project.id);
+      expect(bundle.taskComments).toHaveLength(1);
+      expect(bundle.taskComments[0]).toMatchObject({
+        taskId: design.id,
+        body: "設計50%完了",
+      });
+    });
   });
 
   describe("POST /api/projects/import", () => {
@@ -186,6 +201,31 @@ describe("export/import API", () => {
         expect(originalIds.has(t.id)).toBe(false);
         expect(t.projectId).toBe(imported.id);
       }
+    });
+
+    it("タスク進捗コメントもインポートされ taskId が再割当される", async () => {
+      const { project, design } = await createFullProject();
+      await app.inject({
+        method: "POST",
+        url: `/api/tasks/${design.id}/comments`,
+        payload: { body: "設計レビュー待ち" },
+      });
+      const bundle = await exportProject(project.id);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/projects/import",
+        payload: bundle,
+      });
+      expect(res.statusCode).toBe(201);
+      const imported: Project = res.json();
+
+      const reExported = await exportProject(imported.id);
+      expect(reExported.taskComments).toHaveLength(1);
+      expect(reExported.taskComments[0]?.body).toBe("設計レビュー待ち");
+      const designTask = reExported.tasks.find((t) => t.name === "設計");
+      expect(reExported.taskComments[0]?.taskId).toBe(designTask?.id);
+      expect(reExported.taskComments[0]?.taskId).not.toBe(design.id);
     });
 
     it("ベースラインもインポートされtaskIdが新IDに再割当される", async () => {
