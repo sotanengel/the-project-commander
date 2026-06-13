@@ -117,7 +117,7 @@ test_open_browser_without_open_command() {
   mock_bin="${tmpdir}/bin"
   mkdir -p "${mock_bin}"
   output="$(
-    PATH="${mock_bin}:/bin" bash -c "
+    PATH="${mock_bin}" /bin/bash -c "
       set -euo pipefail
       source '${LIB}'
       APP_URL='http://fallback.test:3000'
@@ -125,6 +125,33 @@ test_open_browser_without_open_command() {
     "
   )"
   assert_eq "Open http://fallback.test:3000 in your browser" "${output}" "open_browser prints URL when open is unavailable"
+  rm -rf "${tmpdir}"
+}
+
+test_open_browser_falls_back_when_open_fails() {
+  local tmpdir mock_bin output
+  tmpdir="$(mktemp -d)"
+  mock_bin="${tmpdir}/bin"
+  mkdir -p "${mock_bin}"
+  cat > "${mock_bin}/open" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "${mock_bin}/open"
+  cat > "${mock_bin}/xdg-open" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "${mock_bin}/xdg-open"
+  output="$(
+    PATH="${mock_bin}:/usr/bin:/bin" /bin/bash -c "
+      set -euo pipefail
+      source '${LIB}'
+      APP_URL='http://fallback.test:3000'
+      open_browser
+    "
+  )"
+  assert_eq "Open http://fallback.test:3000 in your browser" "${output}" "open_browser prints URL when open and xdg-open fail"
   rm -rf "${tmpdir}"
 }
 
@@ -292,6 +319,7 @@ main() {
   run_test "bash syntax check" test_syntax
   run_test "open_browser with open command" test_open_browser_with_open_command
   run_test "open_browser without open command" test_open_browser_without_open_command
+  run_test "open_browser when open fails" test_open_browser_falls_back_when_open_fails
   run_test "wait_for_health success" test_wait_for_health_opens_on_success
   run_test "wait_for_health timeout" test_wait_for_health_opens_on_timeout
   run_test "load_env_file" test_load_env_file

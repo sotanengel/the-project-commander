@@ -63,12 +63,16 @@ find_available_port() {
 
 open_browser() {
   if command -v open >/dev/null 2>&1; then
-    open "${APP_URL}"
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "${APP_URL}"
-  else
-    echo "Open ${APP_URL} in your browser"
+    if open "${APP_URL}" >/dev/null 2>&1; then
+      return 0
+    fi
   fi
+  if command -v xdg-open >/dev/null 2>&1; then
+    if xdg-open "${APP_URL}" >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  echo "Open ${APP_URL} in your browser"
 }
 
 wait_for_health() {
