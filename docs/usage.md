@@ -171,7 +171,9 @@ pnpm start
 ```
 
 - 初回起動時のみ Ollama モデルのダウンロードが走ります（数分かかる場合あり）
-- **RAM 12 GiB 未満**の PC は自動で `qwen2.5:3b-instruct`、**12 GiB 以上**は `qwen2.5:7b-instruct` を選びます（`TPC_OLLAMA_MODEL` で上書き可）
+- **VRAM 6 GiB 以上**（NVIDIA GPU 検出時）または **RAM 12 GiB 以上**の PC は自動で `qwen2.5:7b-instruct`、それ以外は `qwen2.5:3b-instruct` を選びます（`TPC_OLLAMA_MODEL` で上書き可）
+- **Windows / Linux + NVIDIA GPU**: `pnpm start` / `pnpm dev` で Docker Compose が GPU パススルーを自動適用します（要 Docker Desktop の GPU サポートと `nvidia-smi`）
+- **macOS**: `pnpm start` は Docker 内 Ollama（CPU 推論）のままです。Metal GPU を使う場合はホストで `ollama serve` を起動し `pnpm dev` を利用してください
 - CPU のみの PC では分析に 1〜3 分かかることがあります（タイムアウトは 10 分）
 - 2 回目以降はキャッシュ済みモデルをそのまま利用します
 - 無効化: `.env` に `TPC_LOCAL_AGENT=off`
@@ -203,7 +205,9 @@ Ollama 未起動時もコメント保存は成功します（AI 提案のみ省�
 
 | 環境変数 | 説明 |
 |----------|------|
-| `TPC_OLLAMA_MODEL` | Ollama モデル名（デフォルト `qwen2.5:3b-instruct`。高精度なら `qwen2.5:7b-instruct`） |
+| `TPC_OLLAMA_MODEL` | Ollama モデル名（未設定時は VRAM / RAM で自動選択） |
+| `TPC_OLLAMA_USE_GPU` | `auto`（NVIDIA 検出時のみ GPU）/ `on` / `off`（デフォルト `auto`） |
+| `TPC_OLLAMA_GPU_VRAM_THRESHOLD_GIB` | 7B 選択の VRAM 閾値 GiB（デフォルト `6`） |
 | `TPC_LOCAL_AGENT_TIMEOUT_MS` | 分析タイムアウト（デフォルト 600000 = 10 分） |
 | `TPC_OLLAMA_BASE_URL` | Ollama API の URL |
 | `TPC_LOCAL_AGENT=openai_compatible` | LM Studio 等の OpenAI 互換 API を利用 |

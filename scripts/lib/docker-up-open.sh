@@ -110,6 +110,7 @@ prepare_docker_runtime() {
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
   export TPC_HOST_PORT="${host_port}"
   configure_runtime "${host_port}"
+  resolve_compose_gpu_args
   resolve_and_export_ollama_model_for_docker
   local ollama_model="${TPC_OLLAMA_MODEL}"
   {
@@ -118,6 +119,7 @@ prepare_docker_runtime() {
     echo " The Project Commander"
     echo " URL: ${APP_URL}"
     echo " Local LLM: Ollama (${ollama_model})"
+    describe_gpu_runtime
     echo " 初回起動時はモデルのダウンロードに数分かかります"
     echo " (Keep this terminal open while using the app)"
     echo " Stop: Ctrl+C"

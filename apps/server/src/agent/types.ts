@@ -5,6 +5,8 @@ export interface AgentStatus {
   ready: boolean;
   model?: string;
   message?: string;
+  accelerator?: "cuda" | "cpu" | "none";
+  gpuVramGiB?: number;
 }
 
 export interface LlmProvider {

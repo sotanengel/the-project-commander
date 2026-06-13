@@ -1,0 +1,9 @@
+# NVIDIA GPU 利用時の override（Windows WSL2 / Linux）
+# 使用例: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+services:
+  ollama:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+  ollama-init:
+    gpus: all

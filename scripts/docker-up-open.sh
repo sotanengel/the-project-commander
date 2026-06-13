@@ -21,7 +21,8 @@ main() {
   wait_for_health &
   wait_pid=$!
 
-  docker compose up --build "$@"
+  # shellcheck disable=SC2086
+  docker compose ${COMPOSE_GPU_ARGS:-} up --build "$@"
 }
 
 trap cleanup EXIT INT TERM

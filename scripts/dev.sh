@@ -34,10 +34,13 @@ ensure_local_ollama() {
   fi
 
   echo "Ollama を Docker Compose で起動します（初回はモデルダウンロードに数分）..." >&2
+  resolve_compose_gpu_args
   (
     cd "${ROOT}"
-    docker compose up -d ollama
-    docker compose run --rm ollama-init
+    # shellcheck disable=SC2086
+    docker compose ${COMPOSE_GPU_ARGS:-} up -d ollama
+    # shellcheck disable=SC2086
+    docker compose ${COMPOSE_GPU_ARGS:-} run --rm ollama-init
   )
 
   url="$(ollama_url)"
@@ -53,6 +56,7 @@ ensure_local_ollama() {
 main() {
   load_env_file "${ROOT}/.env"
   resolve_and_export_ollama_model
+  resolve_compose_gpu_args
   ensure_local_ollama
   local host_port
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
@@ -67,6 +71,7 @@ main() {
     echo " API:  http://localhost:${host_port}"
     if [[ -n "${TPC_OLLAMA_BASE_URL:-}" ]]; then
       echo " LLM:  ${TPC_OLLAMA_BASE_URL} (${TPC_OLLAMA_MODEL:-auto})"
+      describe_gpu_runtime
     fi
     echo " Stop: Ctrl+C"
     echo "=========================================="
