@@ -28,7 +28,7 @@ export function readLocalAgentEnv(): LocalAgentEnv {
     ollamaModel: process.env.TPC_OLLAMA_MODEL ?? "qwen2.5:7b-instruct",
     openAiCompatibleUrl: openAiUrl ? openAiUrl.replace(/\/$/, "") : undefined,
     openAiCompatibleModel: openAiModel || undefined,
-    timeoutMs: Number(process.env.TPC_LOCAL_AGENT_TIMEOUT_MS ?? 120_000),
+    timeoutMs: Number(process.env.TPC_LOCAL_AGENT_TIMEOUT_MS ?? 600_000),
   };
 }
 

@@ -39,7 +39,7 @@ pnpm start             # アプリ + Ollama + モデル導入を compose で起�
 # 停止: Ctrl+C
 ```
 
-`pnpm start` ではローカル LLM（Ollama / `qwen2.5:7b-instruct`）も同時に起動します。初回のみモデルダウンロードに数分かかることがあります。
+`pnpm start` ではローカル LLM（Ollama / デフォルト `qwen2.5:3b-instruct`）も同時に起動します。初回のみモデルダウンロードに数分かかることがあります。
 
 従来どおり手動でも起動できます:
 

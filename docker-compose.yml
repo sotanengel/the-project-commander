@@ -20,7 +20,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: ${TPC_OLLAMA_MODEL:-qwen2.5:7b-instruct}
+      OLLAMA_MODEL: ${TPC_OLLAMA_MODEL:-qwen2.5:3b-instruct}
     volumes:
       - ./scripts/ollama-pull.sh:/ollama-pull.sh:ro
     entrypoint: ["/bin/bash", "/ollama-pull.sh"]
@@ -40,7 +40,8 @@ services:
       - "${TPC_HOST_PORT:-3000}:3000"
     environment:
       TPC_OLLAMA_BASE_URL: http://ollama:11434
-      TPC_OLLAMA_MODEL: ${TPC_OLLAMA_MODEL:-qwen2.5:7b-instruct}
+      TPC_OLLAMA_MODEL: ${TPC_OLLAMA_MODEL:-qwen2.5:3b-instruct}
+      TPC_LOCAL_AGENT_TIMEOUT_MS: ${TPC_LOCAL_AGENT_TIMEOUT_MS:-600000}
       TPC_IN_CONTAINER: "1"
     volumes:
       - tpc-data:/data

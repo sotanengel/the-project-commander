@@ -170,7 +170,8 @@ cp .env.example .env   # TG_AUTH_TOKEN を設定
 pnpm start
 ```
 
-- 初回起動時のみ `qwen2.5:7b-instruct` のダウンロードが走ります（数分かかる場合あり）
+- 初回起動時のみ `qwen2.5:3b-instruct` のダウンロードが走ります（数分かかる場合あり）
+- CPU のみの PC では分析に 1〜3 分かかることがあります（タイムアウトは 10 分）
 - 2 回目以降はキャッシュ済みモデルをそのまま利用します
 - 無効化: `.env` に `TPC_LOCAL_AGENT=off`
 - 低スペック PC: `TPC_OLLAMA_MODEL=qwen2.5:3b`
@@ -201,7 +202,8 @@ Ollama 未起動時もコメント保存は成功します（AI 提案のみ省�
 
 | 環境変数 | 説明 |
 |----------|------|
-| `TPC_OLLAMA_MODEL` | Ollama モデル名（例: `qwen2.5:7b-instruct`） |
+| `TPC_OLLAMA_MODEL` | Ollama モデル名（デフォルト `qwen2.5:3b-instruct`。高精度なら `qwen2.5:7b-instruct`） |
+| `TPC_LOCAL_AGENT_TIMEOUT_MS` | 分析タイムアウト（デフォルト 600000 = 10 分） |
 | `TPC_OLLAMA_BASE_URL` | Ollama API の URL |
 | `TPC_LOCAL_AGENT=openai_compatible` | LM Studio 等の OpenAI 互換 API を利用 |
 | `TPC_OPENAI_COMPATIBLE_URL` | 互換 API のベース URL（例: `http://127.0.0.1:1234/v1`） |

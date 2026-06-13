@@ -98,7 +98,7 @@ describe("buildLocalCommentSuggestionPrompt", () => {
     expect(prompt).toContain("進捗50%に更新");
     expect(prompt).toContain("task-1");
     expect(prompt).toContain("update_task");
-    expect(prompt).toContain("id=task-1");
+    expect(prompt).toContain("task-1");
     expect(prompt).toContain("設計");
     expect(prompt).not.toContain("get_project_plan");
   });
@@ -107,10 +107,10 @@ describe("buildLocalCommentSuggestionPrompt", () => {
 describe("serializePlanContext", () => {
   it("タスク・依存・マイルストーンを含む", () => {
     const text = serializePlanContext(samplePlan, { targetTaskId: "task-1" });
-    expect(text).toContain("task-1");
-    expect(text).toContain("task-2");
-    expect(text).toContain("predecessorId=task-1");
-    expect(text).toContain("ms-1");
+    expect(text).toContain("task-1|設計");
+    expect(text).toContain("task-2|実装");
+    expect(text).toContain("task-1->task-2");
+    expect(text).toContain("ms-1|リリース");
     expect(text).toContain("criticalPath=task-1,task-2");
   });
 });

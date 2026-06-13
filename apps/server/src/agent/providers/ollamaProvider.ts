@@ -66,6 +66,10 @@ export class OllamaProvider implements LlmProvider {
           messages: [{ role: "user", content: prompt }],
           stream: false,
           format: "json",
+          options: {
+            num_predict: 512,
+            num_ctx: 4096,
+          },
         }),
         signal: controller.signal,
       });

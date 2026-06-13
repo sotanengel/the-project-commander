@@ -22,40 +22,19 @@ export function buildLocalCommentSuggestionPrompt(
 
   const planContext = serializePlanContext(input.plan, { targetTaskId: input.targetTaskId });
 
-  const outputSchema = JSON.stringify(
-    CommentSuggestionsResponseSchema.parse({ suggestions: [] }),
-    null,
-    2,
-  );
+  const outputSchema = JSON.stringify(CommentSuggestionsResponseSchema.parse({ suggestions: [] }));
 
-  return `あなたはプロジェクト管理アシスタントです。ユーザーの進捗コメントを読み、計画への変更提案を JSON のみで返してください。
+  return `プロジェクト管理アシスタント。進捗コメントを読み、計画変更提案を JSON オブジェクトのみで返す。不要なら suggestions:[]。
 
-## 手順
-1. 下記の計画コンテキストを読み、対象タスクとコメント内容を照合すること
-2. 合理的な変更のみ提案すること（過剰な提案は避ける）
-3. 最終回答は次の JSON スキーマに従うオブジェクトのみ（説明文は不要。コードフェンスがあっても可）
+対象タスクID: ${input.targetTaskId}
+コメント: ${input.commentBody}
+履歴: ${commentsBlock}
 
-## 対象タスク ID
-${input.targetTaskId}
-
-## 新しいコメント
-${input.commentBody}
-
-## 直近のコメント履歴（同タスク）
-${commentsBlock}
-
-## 計画コンテキスト
+計画:
 ${planContext}
 
-## 提案の kind
-- update_task: taskId と changes（name, description, durationDays, progress, assignee の部分更新）
-- create_dependency: dependency（predecessorId, successorId, type, lagDays）
-- update_milestone: milestoneId と changes（name, dueDate, status）
+kind: update_task(taskId+changes), create_dependency(dependency), update_milestone(milestoneId+changes)
+各提案に id, label(短い日本語), rationale を付ける。id は計画内の UUID をそのまま使う。
 
-各提案には id（一意の短い文字列）, label（ボタン用の短い日本語）, rationale（理由・スケジュール影響の説明）を含めること。
-変更が不要な場合は suggestions を空配列にすること。
-taskId / milestoneId / predecessorId / successorId は計画コンテキストの id をそのまま使うこと。
-
-## 出力 JSON スキーマ（例）
-${outputSchema}`;
+出力形式: ${outputSchema}`;
 }

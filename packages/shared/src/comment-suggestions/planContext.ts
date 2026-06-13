@@ -1,6 +1,7 @@
 import type { ProjectPlan, ScheduledTask, Task } from "../types.js";
 
-export const DEFAULT_PLAN_CONTEXT_TASK_LIMIT = 80;
+/** ローカル LLM のコンテキスト節約用（大きい WBS でも推論時間を抑える） */
+export const DEFAULT_PLAN_CONTEXT_TASK_LIMIT = 25;
 
 export interface PlanContextOptions {
   targetTaskId: string;
@@ -45,6 +46,10 @@ export function selectTaskIdsForContext(
     if (d.successorId === targetTaskId) add(d.predecessorId);
   }
 
+  for (const id of plan.cpm.criticalPath) {
+    add(id);
+  }
+
   for (const t of plan.tasks) {
     add(t.id);
     if (selected.size >= limit) break;
@@ -53,19 +58,12 @@ export function selectTaskIdsForContext(
   return selected;
 }
 
-function formatTaskLine(task: Task, scheduled: ScheduledTask | undefined): string {
-  const schedule =
-    scheduled !== undefined
-      ? `ES=${scheduled.earlyStart} EF=${scheduled.earlyFinish} critical=${scheduled.isCritical}`
-      : "schedule=n/a";
-  return [
-    `id=${task.id}`,
-    `name=${task.name}`,
-    `durationDays=${task.durationDays}`,
-    `progress=${task.progress}`,
-    `assignee=${task.assignee || "(none)"}`,
-    schedule,
-  ].join(" | ");
+/** 1行1タスクの短い形式（id|名前|日数|進捗|ES|EF|クリティカル） */
+function formatTaskLineCompact(task: Task, scheduled: ScheduledTask | undefined): string {
+  const es = scheduled?.earlyStart ?? "-";
+  const ef = scheduled?.earlyFinish ?? "-";
+  const crit = scheduled?.isCritical ? "C" : "";
+  return `${task.id}|${task.name}|${task.durationDays}|${task.progress}|${es}|${ef}|${crit}`;
 }
 
 /** ProjectPlan をローカル LLM 向けのテキストに直列化する */
@@ -76,34 +74,33 @@ export function serializePlanContext(plan: ProjectPlan, options: PlanContextOpti
 
   const taskLines = plan.tasks
     .filter((t) => selectedIds.has(t.id))
-    .map((t) => formatTaskLine(t, scheduled.get(t.id)));
+    .map((t) => formatTaskLineCompact(t, scheduled.get(t.id)));
 
   const omitted = plan.tasks.length - taskLines.length;
 
-  const depLines = plan.dependencies.map(
-    (d) =>
-      `predecessorId=${d.predecessorId} successorId=${d.successorId} type=${d.type} lagDays=${d.lagDays}`,
-  );
+  const depLines = plan.dependencies
+    .filter((d) => selectedIds.has(d.predecessorId) && selectedIds.has(d.successorId))
+    .map((d) => `${d.predecessorId}->${d.successorId}|${d.type}|lag=${d.lagDays}`);
 
-  const milestoneLines = plan.milestones.map(
-    (m) => `id=${m.id} name=${m.name} dueDate=${m.dueDate} status=${m.status}`,
-  );
+  const milestoneLines = plan.milestones.map((m) => `${m.id}|${m.name}|${m.dueDate}|${m.status}`);
 
   const lines = [
-    `project: id=${plan.project.id} name=${plan.project.name} startDate=${plan.project.startDate}`,
-    `projectDuration=${plan.cpm.projectDuration}`,
+    `project=${plan.project.name} start=${plan.project.startDate} duration=${plan.cpm.projectDuration}`,
     `criticalPath=${plan.cpm.criticalPath.join(",") || "(none)"}`,
-    "",
-    "## タスク（id を変更提案で使用すること）",
+    "tasks(id|name|days|progress|ES|EF|C):",
     ...taskLines,
   ];
 
   if (omitted > 0) {
-    lines.push(`(... ${omitted} 件のタスクは省略)`);
+    lines.push(`(...${omitted} tasks omitted)`);
   }
 
-  lines.push("", "## 依存関係", ...(depLines.length > 0 ? depLines : ["(なし)"]));
-  lines.push("", "## マイルストーン", ...(milestoneLines.length > 0 ? milestoneLines : ["(なし)"]));
+  lines.push(
+    "deps(pred->succ|type|lag):",
+    ...(depLines.length > 0 ? depLines : ["(none)"]),
+    "milestones(id|name|due|status):",
+    ...(milestoneLines.length > 0 ? milestoneLines : ["(none)"]),
+  );
 
   return lines.join("\n");
 }
