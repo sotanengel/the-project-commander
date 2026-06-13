@@ -91,6 +91,7 @@ run_test() {
 test_syntax() {
   bash -n "${MAIN}"
   bash -n "${LIB}"
+  bash -n "${ROOT}/scripts/dev.sh"
   pass "bash syntax check"
 }
 
@@ -158,9 +159,9 @@ test_wait_for_health_opens_on_timeout() {
     HEALTH_URL=\"\${APP_URL}/api/health\"
     MAX_WAIT=2
     wait_for_health
-  " 2>"${stderr_log}"
-  assert_file_contains "${log}" "http://timeout.test:3000" "wait_for_health opens browser after timeout"
-  assert_file_contains "${stderr_log}" "Warning: health check timed out" "wait_for_health warns on timeout"
+  " 2>"${stderr_log}" && fail "wait_for_health should fail on timeout" "expected non-zero exit" || true
+  assert_file_not_exists "${log}" "wait_for_health does not open browser on timeout"
+  assert_file_contains "${stderr_log}" "did not become ready" "wait_for_health warns on timeout"
   rm -rf "${tmpdir}"
 }
 
@@ -238,9 +239,10 @@ EOF
 }
 
 test_prepare_docker_runtime_exports_port() {
-  local tmpdir mock_bin result
+  local tmpdir mock_bin result stderr_log
   tmpdir="$(mktemp -d)"
   mock_bin="${tmpdir}/bin"
+  stderr_log="${tmpdir}/stderr.log"
   mkdir -p "${mock_bin}"
   cat > "${mock_bin}/lsof" <<'EOF'
 #!/usr/bin/env bash
@@ -253,9 +255,10 @@ EOF
       source '${LIB}'
       prepare_docker_runtime
       printf '%s|%s' \"\${TPC_HOST_PORT}\" \"\${APP_URL}\"
-    "
+    " 2>"${stderr_log}"
   )"
   assert_eq "3000|http://localhost:3000" "${result}" "prepare_docker_runtime exports default port and URL"
+  assert_file_contains "${stderr_log}" "URL: http://localhost:3000" "prepare_docker_runtime prints startup banner"
   rm -rf "${tmpdir}"
 }
 

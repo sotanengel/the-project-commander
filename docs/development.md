@@ -39,7 +39,7 @@ pre-commit install
 ## 日常の開発
 
 ```bash
-pnpm dev          # server(:3000) + web(:5173)
+pnpm dev          # server + web(:5173)。3000 使用中は API を空きポートに自動割当
 pnpm test         # 全パッケージの Vitest + shell スクリプトテスト
 pnpm test:scripts # docker-up-open.sh のみ
 pnpm typecheck

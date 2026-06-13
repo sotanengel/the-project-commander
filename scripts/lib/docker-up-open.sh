@@ -81,8 +81,9 @@ wait_for_health() {
     sleep 1
     elapsed=$((elapsed + 1))
   done
-  echo "Warning: health check timed out; opening browser anyway" >&2
-  open_browser
+  echo "Warning: ${HEALTH_URL} did not become ready in ${MAX_WAIT}s." >&2
+  echo "Check docker compose logs above, then open ${APP_URL} manually when the app is ready." >&2
+  return 1
 }
 
 load_env_file() {
@@ -100,4 +101,14 @@ prepare_docker_runtime() {
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
   export TPC_HOST_PORT="${host_port}"
   configure_runtime "${host_port}"
+  {
+    echo ""
+    echo "=========================================="
+    echo " The Project Commander"
+    echo " URL: ${APP_URL}"
+    echo " (Keep this terminal open while using the app)"
+    echo " Stop: Ctrl+C"
+    echo "=========================================="
+    echo ""
+  } >&2
 }

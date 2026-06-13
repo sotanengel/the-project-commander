@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.22.0",
   "scripts": {
     "start": "bash scripts/docker-up-open.sh",
-    "dev": "pnpm --parallel --filter @tpc/server --filter @tpc/web dev",
+    "dev": "bash scripts/dev.sh",
     "build": "pnpm -r build",
     "test": "pnpm -r test && pnpm test:scripts",
     "test:scripts": "bash scripts/docker-up-open.test.sh",
