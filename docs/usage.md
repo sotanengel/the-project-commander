@@ -33,7 +33,7 @@ export TG_AUTH_TOKEN=tg_anon_xxxxxxxx
 docker compose up --build
 ```
 
-`pnpm start` 利用時も、準備完了後に http://localhost:3000 がブラウザで開きます。データは `/data` ボリュームに永続化されます。
+`pnpm start` 利用時も、準備完了後に http://localhost:3000（または 3000 が使用中の場合は空きポート）がブラウザで開きます。データは `/data` ボリュームに永続化されます。
 
 ## 開発モード
 

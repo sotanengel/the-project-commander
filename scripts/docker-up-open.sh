@@ -16,6 +16,7 @@ cleanup() {
 
 main() {
   load_env_file ".env"
+  prepare_docker_runtime
 
   wait_for_health &
   wait_pid=$!

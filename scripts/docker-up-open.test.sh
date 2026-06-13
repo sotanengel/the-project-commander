@@ -200,6 +200,65 @@ test_load_env_file_missing() {
   rm -rf "${tmpdir}"
 }
 
+test_configure_runtime() {
+  local app_url
+  app_url="$(
+    bash -c "
+      set -euo pipefail
+      source '${LIB}'
+      configure_runtime 3005
+      printf '%s' \"\${APP_URL}\"
+    "
+  )"
+  assert_eq "http://localhost:3005" "${app_url}" "configure_runtime sets APP_URL from host port"
+}
+
+test_find_available_port_falls_back() {
+  local tmpdir mock_bin port
+  tmpdir="$(mktemp -d)"
+  mock_bin="${tmpdir}/bin"
+  mkdir -p "${mock_bin}"
+  cat > "${mock_bin}/lsof" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == *":3000"* ]]; then
+  exit 0
+fi
+exit 1
+EOF
+  chmod +x "${mock_bin}/lsof"
+  port="$(
+    PATH="${mock_bin}:${PATH}" bash -c "
+      set -euo pipefail
+      source '${LIB}'
+      find_available_port 3000 3002 2>/dev/null
+    "
+  )"
+  assert_eq "3001" "${port}" "find_available_port selects next free port"
+  rm -rf "${tmpdir}"
+}
+
+test_prepare_docker_runtime_exports_port() {
+  local tmpdir mock_bin result
+  tmpdir="$(mktemp -d)"
+  mock_bin="${tmpdir}/bin"
+  mkdir -p "${mock_bin}"
+  cat > "${mock_bin}/lsof" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "${mock_bin}/lsof"
+  result="$(
+    PATH="${mock_bin}:${PATH}" bash -c "
+      set -euo pipefail
+      source '${LIB}'
+      prepare_docker_runtime
+      printf '%s|%s' \"\${TPC_HOST_PORT}\" \"\${APP_URL}\"
+    "
+  )"
+  assert_eq "3000|http://localhost:3000" "${result}" "prepare_docker_runtime exports default port and URL"
+  rm -rf "${tmpdir}"
+}
+
 test_main_invokes_docker_compose() {
   local tmpdir mock_bin
   tmpdir="$(mktemp -d)"
@@ -234,6 +293,9 @@ main() {
   run_test "wait_for_health timeout" test_wait_for_health_opens_on_timeout
   run_test "load_env_file" test_load_env_file
   run_test "load_env_file missing" test_load_env_file_missing
+  run_test "configure_runtime" test_configure_runtime
+  run_test "find_available_port fallback" test_find_available_port_falls_back
+  run_test "prepare_docker_runtime" test_prepare_docker_runtime_exports_port
   run_test "main invokes docker compose" test_main_invokes_docker_compose
 
   echo
