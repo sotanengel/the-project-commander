@@ -2,7 +2,7 @@
 export const WBS_DRAFT_OUTPUT_SCHEMA = `{
   "tasks": [
     { "name": "フェーズ名", "durationDays": 0, "children": [
-      { "name": "ワークパッケージ", "durationDays": 3, "description": "作業内容" }
+      { "name": "ワークパッケージ", "durationDays": 3, "description": "候補会場3件をリストアップし、予算・収容人数で絞り込む", "assignee": "省略可（未設定でもよい）" }
     ]}
   ]
 }`;
@@ -11,7 +11,7 @@ export const WBS_DRAFT_OUTPUT_SCHEMA = `{
 export const FULL_PROJECT_PLAN_SCHEMA = `{
   "tasks": [
     { "name": "フェーズ名", "durationDays": 0, "children": [
-      { "name": "ワークパッケージ", "durationDays": 3, "description": "作業内容", "assignee": "任意" }
+      { "name": "ワークパッケージ", "durationDays": 3, "description": "候補会場3件をリストアップし、予算・収容人数で絞り込む", "assignee": "新郎（省略可・未設定でもよい）" }
     ]}
   ],
   "dependencies": [
