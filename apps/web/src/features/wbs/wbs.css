@@ -20,56 +20,22 @@
   margin: 6px 0 4px;
 }
 
-.wbs-shortcut-list {
-  padding-left: 20px;
-  list-style: none;
-}
-
-.wbs-shortcut-list li {
-  margin-bottom: 2px;
-}
-
-.wbs-help kbd {
-  display: inline-block;
-  padding: 1px 6px;
-  border: 1px solid var(--color-border);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  background: var(--color-bg);
-  font-size: 12px;
-  font-family: inherit;
-}
-
 /* ワークパッケージバッジ */
 .wbs-wp-badge {
   margin-left: 6px;
   font-size: 10px;
 }
 
-/* インラインバリデーションのエラー表示 */
-.wbs-field-error {
-  color: var(--color-danger);
-  font-size: 12px;
+/* 行クリックで詳細へ遷移 */
+.wbs-row-clickable {
+  cursor: pointer;
 }
 
-.wbs-row-error td {
-  font-size: 12px;
-  padding-top: 0;
+.wbs-row-clickable:hover {
+  background: rgba(37, 99, 235, 0.06);
 }
 
-/* 行フォーカス時の可視化（キーボード操作用） */
-tr.wbs-row:focus {
+.wbs-row-clickable:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
-}
-
-.wbs-detail-link {
-  font-size: 12px;
-  color: var(--color-primary);
-  text-decoration: none;
-  margin-right: 4px;
-}
-
-.wbs-detail-link:hover {
-  text-decoration: underline;
 }

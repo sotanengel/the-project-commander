@@ -129,6 +129,10 @@ describe("buildTaskDetailView", () => {
     const view = buildTaskDetailView(plan, "p1");
     expect(view?.isLeaf).toBe(false);
     expect(view?.schedule).toBeNull();
+    expect(view?.children).toEqual([
+      { id: "t1", name: "タスクA" },
+      { id: "t2", name: "タスクB" },
+    ]);
   });
 });
 

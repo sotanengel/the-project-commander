@@ -1,6 +1,6 @@
 import type { TaskUpdateInput } from "@tpc/shared";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { validateTaskEdit } from "../wbs/wbsViewModel.js";
 import { type TaskDetailView, buildTaskDetailView, formatAssignee } from "./taskDetailModel.js";
@@ -12,11 +12,14 @@ function toMessage(e: unknown): string {
 
 export default function TaskDetailPage() {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
+  const navigate = useNavigate();
   const [view, setView] = useState<TaskDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [addingChild, setAddingChild] = useState(false);
+  const [childError, setChildError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -102,6 +105,23 @@ export default function TaskDetailPage() {
       setSaveError(`保存に失敗しました: ${toMessage(e)}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddChild = async () => {
+    if (!projectId || !view) return;
+    setChildError(null);
+    setAddingChild(true);
+    try {
+      const child = await api.createTask(projectId, {
+        name: "新しい子タスク",
+        parentId: view.task.id,
+      });
+      navigate(`/projects/${projectId}/tasks/${child.id}`);
+    } catch (e) {
+      setChildError(`子タスクの追加に失敗しました: ${toMessage(e)}`);
+    } finally {
+      setAddingChild(false);
     }
   };
 
@@ -225,6 +245,32 @@ export default function TaskDetailPage() {
             </>
           )}
         </dl>
+
+        <div className="task-detail-children">
+          <div className="task-detail-children-head">
+            <h3>子タスク</h3>
+            <button
+              type="button"
+              className="secondary"
+              disabled={addingChild}
+              onClick={handleAddChild}
+            >
+              {addingChild ? "追加中…" : "+ 子タスクを追加"}
+            </button>
+          </div>
+          {childError && <p className="error">{childError}</p>}
+          {view.children.length === 0 ? (
+            <p className="muted task-detail-empty-deps">子タスクはありません</p>
+          ) : (
+            <ul>
+              {view.children.map((t) => (
+                <li key={t.id}>
+                  <Link to={`/projects/${projectId}/tasks/${t.id}`}>{t.name}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="task-detail-deps">
           <div>

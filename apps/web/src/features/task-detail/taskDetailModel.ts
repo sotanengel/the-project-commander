@@ -10,6 +10,7 @@ export interface TaskDetailView {
   task: Task;
   isLeaf: boolean;
   breadcrumb: string[];
+  children: LinkedTask[];
   predecessors: LinkedTask[];
   successors: LinkedTask[];
   schedule: ScheduledTask | null;
@@ -32,6 +33,14 @@ export function buildTaskBreadcrumb(tasks: Task[], taskId: string): string[] {
     current = current.parentId ? byId.get(current.parentId) : undefined;
   }
   return names;
+}
+
+/** 直接の子タスクを sortOrder 順で返す */
+export function listChildTasks(tasks: Task[], parentId: string): LinkedTask[] {
+  return tasks
+    .filter((t) => t.parentId === parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((t) => ({ id: t.id, name: t.name }));
 }
 
 function resolveLinkedTasks(
@@ -76,6 +85,7 @@ export function buildTaskDetailView(plan: ProjectPlan, taskId: string): TaskDeta
     task,
     isLeaf: leaf,
     breadcrumb: buildTaskBreadcrumb(plan.tasks, taskId),
+    children: listChildTasks(plan.tasks, taskId),
     predecessors: resolveLinkedTasks(plan.tasks, plan.dependencies, taskId, "predecessors"),
     successors: resolveLinkedTasks(plan.tasks, plan.dependencies, taskId, "successors"),
     schedule,
