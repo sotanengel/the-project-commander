@@ -162,10 +162,67 @@ describe("parseCommentSuggestionsResponse", () => {
     }
   });
 
-  it("不正 kind は Zod エラー", () => {
-    expect(() =>
-      parseCommentSuggestionsResponse(JSON.stringify({ suggestions: [{ kind: "unknown" }] })),
-    ).toThrow();
+  it("不正 kind は除外される", () => {
+    const result = parseCommentSuggestionsResponse(
+      JSON.stringify({ suggestions: [{ kind: "unknown" }] }),
+    );
+    expect(result).toHaveLength(0);
+  });
+
+  it("camelCase の kind を正規化する", () => {
+    const result = parseCommentSuggestionsResponse(
+      JSON.stringify({
+        suggestions: [
+          {
+            id: "s1",
+            kind: "updateTask",
+            label: "進捗更新",
+            rationale: "理由",
+            taskId: "task-1",
+            changes: { progress: 80 },
+          },
+        ],
+      }),
+    );
+    expect(result[0]?.kind).toBe("update_task");
+  });
+
+  it("type フィールドから kind を推論する", () => {
+    const result = parseCommentSuggestionsResponse(
+      JSON.stringify({
+        suggestions: [
+          {
+            id: "s1",
+            type: "update_task",
+            label: "進捗更新",
+            rationale: "理由",
+            taskId: "task-1",
+            changes: { progress: 60 },
+          },
+        ],
+      }),
+    );
+    expect(result[0]?.kind).toBe("update_task");
+  });
+
+  it("不正と正しい提案が混在する場合は正しいものだけ残す", () => {
+    const result = parseCommentSuggestionsResponse(
+      JSON.stringify({
+        suggestions: [
+          { kind: "unknown" },
+          {
+            id: "s1",
+            kind: "update_task",
+            label: "OK",
+            rationale: "理由",
+            taskId: "task-1",
+            changes: { progress: 50 },
+          },
+        ],
+      }),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]?.kind).toBe("update_task");
   });
 });
 

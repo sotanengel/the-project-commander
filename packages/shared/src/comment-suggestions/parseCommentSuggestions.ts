@@ -1,6 +1,7 @@
 import type { ProjectPlan } from "../types.js";
 import { extractJsonFromAiResponse } from "./extractJson.js";
-import { type CommentSuggestion, CommentSuggestionsResponseSchema } from "./schemas.js";
+import { extractSuggestionItems, normalizeSuggestionRaw } from "./normalizeCommentSuggestions.js";
+import { type CommentSuggestion, CommentSuggestionSchema } from "./schemas.js";
 
 export { CommentSuggestionParseError } from "./extractJson.js";
 
@@ -42,8 +43,18 @@ export function validateSuggestionsAgainstPlan(
 /** AI 応答テキストを CommentSuggestionsResponse にパースする */
 export function parseCommentSuggestionsResponse(text: string): CommentSuggestion[] {
   const raw = extractJsonFromAiResponse(text);
-  const parsed = CommentSuggestionsResponseSchema.parse(raw);
-  return parsed.suggestions;
+  const items = extractSuggestionItems(raw);
+  const suggestions: CommentSuggestion[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const normalized = normalizeSuggestionRaw(items[i], i);
+    const parsed = CommentSuggestionSchema.safeParse(normalized);
+    if (parsed.success) {
+      suggestions.push(parsed.data);
+    }
+  }
+
+  return suggestions;
 }
 
 /** パース + 計画に対する ID 検証 */

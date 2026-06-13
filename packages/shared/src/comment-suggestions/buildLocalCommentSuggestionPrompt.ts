@@ -23,6 +23,18 @@ export function buildLocalCommentSuggestionPrompt(
   const planContext = serializePlanContext(input.plan, { targetTaskId: input.targetTaskId });
 
   const outputSchema = JSON.stringify(CommentSuggestionsResponseSchema.parse({ suggestions: [] }));
+  const example = JSON.stringify({
+    suggestions: [
+      {
+        id: "s1",
+        kind: "update_task",
+        label: "進捗を50%に更新",
+        rationale: "コメントの進捗報告に合わせる",
+        taskId: input.targetTaskId,
+        changes: { progress: 50 },
+      },
+    ],
+  });
 
   return `プロジェクト管理アシスタント。進捗コメントを読み、計画変更提案を JSON オブジェクトのみで返す。不要なら suggestions:[]。
 
@@ -33,8 +45,13 @@ export function buildLocalCommentSuggestionPrompt(
 計画:
 ${planContext}
 
-kind: update_task(taskId+changes), create_dependency(dependency), update_milestone(milestoneId+changes)
-各提案に id, label(短い日本語), rationale を付ける。id は計画内の UUID をそのまま使う。
+kind は必ず次のいずれか（スネークケース）:
+- update_task: taskId + changes
+- create_dependency: dependency
+- update_milestone: milestoneId + changes
+各提案に id, label(短い日本語), rationale を付ける。taskId / milestoneId は計画内 UUID をそのまま使う。
+
+例: ${example}
 
 出力形式: ${outputSchema}`;
 }
