@@ -34,6 +34,14 @@ pnpm lint
 ## Dockerでの起動
 
 ```bash
+cp .env.example .env   # TG_AUTH_TOKEN を設定
+pnpm start             # compose 起動 + 準備完了後にブラウザが開く（3000 使用中は空きポートを自動選択）
+# 停止: Ctrl+C
+```
+
+従来どおり手動でも起動できます:
+
+```bash
 TG_AUTH_TOKEN=<トークン> docker compose up --build
 # → http://localhost:3000
 ```
