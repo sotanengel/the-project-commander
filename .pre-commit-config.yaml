@@ -13,7 +13,7 @@ repos:
         language: system
         pass_filenames: false
       - id: test
-        name: vitest (all packages)
+        name: test (vitest + shell scripts)
         entry: pnpm test
         language: system
         pass_filenames: false

@@ -40,7 +40,8 @@ pre-commit install
 
 ```bash
 pnpm dev          # server(:3000) + web(:5173)
-pnpm test         # 全パッケージの Vitest
+pnpm test         # 全パッケージの Vitest + shell スクリプトテスト
+pnpm test:scripts # docker-up-open.sh のみ
 pnpm typecheck
 pnpm lint
 pnpm lint:fix
