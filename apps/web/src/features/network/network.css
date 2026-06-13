@@ -51,6 +51,44 @@
   fill: var(--color-critical);
 }
 
+/* ネットワーク図チャート */
+.network-chart-wrap {
+  margin-top: 12px;
+}
+
+.network-zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.network-zoom-toolbar button {
+  min-width: 36px;
+  padding: 4px 10px;
+}
+
+.network-zoom-label {
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.network-viewport {
+  height: 480px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.network-scaled {
+  margin: 0 auto;
+}
+
+.network-chart {
+  display: block;
+}
+
 /* 凡例 */
 .network-legend {
   display: flex;
@@ -86,4 +124,51 @@
 .network-legend-type {
   font-weight: 600;
   color: var(--color-text);
+}
+
+/* ノード内ラベル（foreignObject） */
+.network-node-fo {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.network-node-name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--color-text);
+}
+
+.network-node-sub {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.network-node-clickable {
+  cursor: pointer;
+  outline: none;
+}
+
+.network-node-clickable:focus .network-node {
+  stroke-width: 3;
+}
+
+.network-node-clickable:hover .network-node {
+  filter: brightness(0.97);
+  stroke-width: 2.5;
 }
