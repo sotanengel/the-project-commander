@@ -57,4 +57,57 @@ describe("api client", () => {
       message: expect.stringContaining("サーバーに接続できません"),
     });
   });
+
+  it("GET は Content-Type ヘッダを付けない", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    await api.listProjects();
+
+    expect(fetch).toHaveBeenCalledOnce();
+    const firstCall = vi.mocked(fetch).mock.calls[0];
+    if (!firstCall) throw new Error("fetch was not called");
+    const [, init] = firstCall;
+    expect(init?.headers).toBeUndefined();
+    expect(init?.body).toBeUndefined();
+  });
+
+  it("DELETE は Content-Type ヘッダとボディを付けない", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    } as Response);
+
+    await api.deleteProject("project-id");
+
+    expect(fetch).toHaveBeenCalledOnce();
+    const firstCall = vi.mocked(fetch).mock.calls[0];
+    if (!firstCall) throw new Error("fetch was not called");
+    const [path, init] = firstCall;
+    expect(path).toBe("/api/projects/project-id");
+    expect(init?.method).toBe("DELETE");
+    expect(init?.headers).toBeUndefined();
+    expect(init?.body).toBeUndefined();
+  });
+
+  it("POST は Content-Type: application/json と JSON ボディを付ける", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "1", name: "New Project" }),
+    } as Response);
+
+    const input = { name: "New Project", startDate: "2026-01-01", description: "desc" };
+    await api.createProject(input);
+
+    expect(fetch).toHaveBeenCalledOnce();
+    const firstCall = vi.mocked(fetch).mock.calls[0];
+    if (!firstCall) throw new Error("fetch was not called");
+    const [path, init] = firstCall;
+    expect(path).toBe("/api/projects");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers).toEqual({ "Content-Type": "application/json" });
+    expect(init?.body).toBe(JSON.stringify(input));
+  });
 });
