@@ -29,8 +29,11 @@
   border: none;
   padding: 0;
   background: transparent;
-  max-width: none;
-  max-height: none;
+  width: clamp(280px, 90vw, 640px);
+  max-width: 90vw;
+  max-height: 90vh;
+  margin: auto;
+  overflow: visible;
 }
 
 .modal-dialog::backdrop {
@@ -39,15 +42,15 @@
 
 .modal-card {
   width: 100%;
-  max-width: 520px;
-  max-height: calc(100vh - 32px);
+  max-height: min(85vh, 720px);
   overflow-y: auto;
   margin: 0;
+  padding: clamp(16px, 3vw, 24px);
 }
 
 .modal-title {
-  margin: 0 0 16px;
-  font-size: 18px;
+  margin: 0 0 clamp(12px, 2vh, 16px);
+  font-size: clamp(16px, 2.5vw, 18px);
 }
 
 .modal-field {
@@ -61,8 +64,13 @@
 
 .modal-field input,
 .modal-field textarea {
-  font-size: 14px;
+  font-size: clamp(13px, 1.8vw, 14px);
   color: var(--color-text);
+}
+
+.modal-field textarea {
+  min-height: clamp(80px, 18vh, 200px);
+  resize: vertical;
 }
 
 .modal-actions {
