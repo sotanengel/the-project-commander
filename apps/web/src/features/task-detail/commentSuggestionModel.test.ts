@@ -1,6 +1,25 @@
 import type { CommentSuggestion } from "@tpc/shared";
 import { describe, expect, it, vi } from "vitest";
-import { applySuggestion, describeSuggestionChanges } from "./commentSuggestionModel.js";
+import {
+  applySuggestion,
+  describeSuggestionChanges,
+  formatCommentAnalysisError,
+} from "./commentSuggestionModel.js";
+
+describe("formatCommentAnalysisError", () => {
+  it("CLI の JSON エラーから result を取り出す", () => {
+    const raw = `AI 分析に失敗しました: ${JSON.stringify({
+      type: "result",
+      is_error: true,
+      result: "Invalid API key · Fix external API key",
+    })}`;
+    expect(formatCommentAnalysisError(raw)).toBe("Invalid API key · Fix external API key");
+  });
+
+  it("通常のメッセージはそのまま返す", () => {
+    expect(formatCommentAnalysisError("ネットワークエラー")).toBe("ネットワークエラー");
+  });
+});
 
 describe("describeSuggestionChanges", () => {
   it("update_task の changes を列挙する", () => {

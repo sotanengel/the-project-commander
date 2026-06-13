@@ -332,6 +332,12 @@
   gap: 12px;
 }
 
+.comment-suggestion-error {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .comment-suggestion-card {
   padding: 12px;
   margin: 0;

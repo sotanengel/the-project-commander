@@ -2,7 +2,7 @@ import type { CommentSuggestion } from "@tpc/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "../../api/client.js";
 import CommentSuggestionDialog from "./CommentSuggestionDialog.js";
-import { applySuggestion } from "./commentSuggestionModel.js";
+import { applySuggestion, formatCommentAnalysisError } from "./commentSuggestionModel.js";
 import { formatCommentTimeLabels, validateCommentBody } from "./taskCommentModel.js";
 
 function toMessage(e: unknown): string {
@@ -33,9 +33,10 @@ export default function TaskCommentsSection({
   const [analyzing, setAnalyzing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<CommentSuggestion[]>([]);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyErrors, setApplyErrors] = useState<Record<string, string>>({});
-  const [agentNotice, setAgentNotice] = useState<string | null>(null);
 
   const loadComments = useCallback(() => {
     setLoading(true);
@@ -55,26 +56,32 @@ export default function TaskCommentsSection({
 
   const requestSuggestions = async (commentBody: string) => {
     setAnalyzing(true);
-    setAgentNotice(null);
+    setAnalysisError(null);
+    setAnalysisNotice(null);
     setApplyErrors({});
     setDialogOpen(true);
     try {
       const result = await api.analyzeCommentSuggestions(taskId, { projectId, commentBody });
       setSuggestions(result.suggestions);
       if (result.suggestions.length === 0) {
-        setAgentNotice("AI からの変更提案はありませんでした。");
+        setAnalysisNotice("AI からの変更提案はありませんでした。");
       }
     } catch (e) {
+      setSuggestions([]);
+      const rawMessage =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "不明なエラーが発生しました";
       if (e instanceof ApiError && e.status === 503) {
-        setDialogOpen(false);
-        setAgentNotice(
-          e.message ||
+        setAnalysisError(
+          formatCommentAnalysisError(rawMessage) ||
             "AI 提案は現在利用できません。Claude CLI のインストールとサーバー再起動を確認してください。",
         );
         return;
       }
-      setSuggestions([]);
-      setAgentNotice(`AI 分析に失敗しました: ${toMessage(e)}`);
+      setAnalysisError(formatCommentAnalysisError(rawMessage));
     } finally {
       setAnalyzing(false);
     }
@@ -129,6 +136,8 @@ export default function TaskCommentsSection({
   const closeDialog = () => {
     setDialogOpen(false);
     setSuggestions([]);
+    setAnalysisError(null);
+    setAnalysisNotice(null);
     setApplyErrors({});
   };
 
@@ -207,8 +216,6 @@ export default function TaskCommentsSection({
             {adding ? "追加中…" : analyzing ? "AI 分析中…" : "コメントを追加"}
           </button>
         </div>
-
-        {agentNotice && <p className="muted task-comments-agent-notice">{agentNotice}</p>}
 
         <div className="task-comments-list-wrap">
           <h3 className="task-comments-list-heading">履歴</h3>
@@ -295,6 +302,8 @@ export default function TaskCommentsSection({
         open={dialogOpen}
         suggestions={suggestions}
         analyzing={analyzing}
+        analysisError={analysisError}
+        analysisNotice={analysisNotice}
         onClose={closeDialog}
         onApply={handleApplySuggestion}
         applyingId={applyingId}

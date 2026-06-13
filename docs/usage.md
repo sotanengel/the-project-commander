@@ -163,7 +163,7 @@ Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP �
 
 ### 前提
 
-1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストールし、`claude auth login` 等でログイン済み
+1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストールし、`claude auth login` 等でログイン済み（未ログイン時はポップアップに `Invalid API key` 等が表示されます）
 2. **Docker 起動（`pnpm start`）** 時は、ホスト上で Claude host agent が自動起動し、コンテナから MCP 経由で AI 提案します（追加設定不要）
 3. **ローカル開発（`pnpm dev`）** ではサーバーが直接 `claude` を実行します
 4. 無効化する場合のみ `.env` に `TPC_CLI_AGENT=off`

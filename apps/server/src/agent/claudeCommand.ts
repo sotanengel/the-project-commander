@@ -99,11 +99,7 @@ export function runClaudePrintCommand(options: RunClaudePrintCommandOptions): Pr
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        reject(
-          new Error(
-            stderr.trim() || stdout.trim() || `Claude CLI が終了コード ${code} で終了しました`,
-          ),
-        );
+        reject(new Error(formatClaudeCliFailureMessage(stdout, stderr, code)));
         return;
       }
       try {
@@ -113,6 +109,30 @@ export function runClaudePrintCommand(options: RunClaudePrintCommandOptions): Pr
       }
     });
   });
+}
+
+export function formatClaudeCliFailureMessage(
+  stdout: string,
+  stderr: string,
+  code: number | null,
+): string {
+  const trimmedStdout = stdout.trim();
+  if (trimmedStdout) {
+    try {
+      const parsed = JSON.parse(trimmedStdout) as ClaudePrintResponse;
+      if (parsed.is_error) {
+        const message = parsed.result?.trim();
+        if (message) return message;
+      }
+    } catch {
+      // stdout は JSON ではない
+    }
+  }
+
+  const trimmedStderr = stderr.trim();
+  if (trimmedStderr) return trimmedStderr;
+  if (trimmedStdout) return trimmedStdout;
+  return `Claude CLI が終了コード ${code ?? "unknown"} で終了しました`;
 }
 
 export function extractClaudePrintResult(stdout: string): string {

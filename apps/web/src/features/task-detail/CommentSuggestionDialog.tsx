@@ -6,6 +6,8 @@ interface CommentSuggestionDialogProps {
   open: boolean;
   suggestions: CommentSuggestion[];
   analyzing?: boolean;
+  analysisError?: string | null;
+  analysisNotice?: string | null;
   onClose: () => void;
   onApply: (suggestion: CommentSuggestion) => Promise<void>;
   applyingId: string | null;
@@ -17,6 +19,8 @@ export default function CommentSuggestionDialog({
   open,
   suggestions,
   analyzing = false,
+  analysisError = null,
+  analysisNotice = null,
   onClose,
   onApply,
   applyingId,
@@ -53,8 +57,12 @@ export default function CommentSuggestionDialog({
         </h2>
         {analyzing ? (
           <p className="muted">AI が提案を分析中…</p>
+        ) : analysisError ? (
+          <p className="error comment-suggestion-error" role="alert">
+            {analysisError}
+          </p>
         ) : suggestions.length === 0 ? (
-          <p className="muted">提案はありません。</p>
+          <p className="muted">{analysisNotice ?? "提案はありません。"}</p>
         ) : (
           <ul className="comment-suggestion-list">
             {suggestions.map((suggestion) => {

@@ -13,6 +13,32 @@ const defaultApplier: SuggestionApplier = {
   updateMilestone: api.updateMilestone.bind(api),
 };
 
+interface ClaudeCliErrorPayload {
+  is_error?: boolean;
+  result?: string;
+}
+
+/** API / CLI から返ったエラーメッセージをユーザー向けに整形する */
+export function formatCommentAnalysisError(message: string): string {
+  const trimmed = message.trim();
+  if (!trimmed) return "AI 分析に失敗しました";
+
+  const jsonStart = trimmed.indexOf("{");
+  if (jsonStart >= 0) {
+    try {
+      const parsed = JSON.parse(trimmed.slice(jsonStart)) as ClaudeCliErrorPayload;
+      if (parsed.is_error) {
+        const result = parsed.result?.trim();
+        if (result) return result;
+      }
+    } catch {
+      // JSON として解釈できない場合は原文を返す
+    }
+  }
+
+  return trimmed;
+}
+
 /** 提案内容を一覧表示用の行に変換する */
 export function describeSuggestionChanges(suggestion: CommentSuggestion): string[] {
   if (suggestion.kind === "update_task") {
