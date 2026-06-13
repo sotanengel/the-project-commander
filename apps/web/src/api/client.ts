@@ -105,7 +105,15 @@ export const api = {
     put<TaskComment>(`/api/task-comments/${id}`, input),
   deleteTaskComment: (id: string) => del<{ ok: true }>(`/api/task-comments/${id}`),
   analyzeCommentSuggestions: (taskId: string, input: CommentSuggestionAnalyzeInput) =>
-    post<{ suggestions: CommentSuggestion[] }>(`/api/tasks/${taskId}/comment-suggestions`, input),
+    post<{
+      suggestions: CommentSuggestion[];
+      meta?: {
+        rawItemCount: number;
+        parsedCount: number;
+        validatedCount: number;
+        filteredCount: number;
+      };
+    }>(`/api/tasks/${taskId}/comment-suggestions`, input),
   getAgentStatus: () =>
     get<{
       provider: string;

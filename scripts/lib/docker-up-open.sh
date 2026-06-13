@@ -110,7 +110,7 @@ prepare_docker_runtime() {
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
   export TPC_HOST_PORT="${host_port}"
   configure_runtime "${host_port}"
-  resolve_and_export_ollama_model
+  resolve_and_export_ollama_model_for_docker
   local ollama_model="${TPC_OLLAMA_MODEL}"
   {
     echo ""

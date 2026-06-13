@@ -6,7 +6,16 @@ import {
   parseCommentSuggestionsResponse,
   validateSuggestionsAgainstPlan,
 } from "./parseCommentSuggestions.js";
-import { selectTaskIdsForContext, serializePlanContext } from "./planContext.js";
+import {
+  DEFAULT_PLAN_CONTEXT_TASK_LIMIT,
+  PLAN_CONTEXT_TOKEN_BUDGET,
+  matchTaskNamesInComment,
+  selectFocusTaskIds,
+  selectTaskIdsForContext,
+  serializePlanContext,
+  serializePlanContextWithinBudget,
+} from "./planContext.js";
+import { resolveTaskIdInPlan } from "./resolveSuggestionIds.js";
 
 const samplePlan: ProjectPlan = {
   project: {
@@ -22,7 +31,7 @@ const samplePlan: ProjectPlan = {
       projectId: "proj-1",
       parentId: null,
       name: "設計",
-      description: "",
+      description: "要件定義と基本設計",
       durationDays: 5,
       progress: 30,
       assignee: "Alice",
@@ -98,15 +107,22 @@ describe("buildLocalCommentSuggestionPrompt", () => {
     expect(prompt).toContain("進捗50%に更新");
     expect(prompt).toContain("task-1");
     expect(prompt).toContain("update_task");
-    expect(prompt).toContain("task-1");
     expect(prompt).toContain("設計");
+    expect(prompt).toContain("description");
     expect(prompt).not.toContain("get_project_plan");
   });
 });
 
 describe("serializePlanContext", () => {
-  it("タスク・依存・マイルストーンを含む", () => {
-    const text = serializePlanContext(samplePlan, { targetTaskId: "task-1" });
+  it("FOCUS・INDEX・SCHEDULE を含む", () => {
+    const text = serializePlanContext(samplePlan, {
+      targetTaskId: "task-1",
+      commentBody: "進捗更新",
+    });
+    expect(text).toContain("FOCUS");
+    expect(text).toContain("INDEX");
+    expect(text).toContain("SCHEDULE");
+    expect(text).toContain("要件定義と基本設計");
     expect(text).toContain("task-1|設計");
     expect(text).toContain("task-2|実装");
     expect(text).toContain("task-1->task-2");
@@ -115,11 +131,68 @@ describe("serializePlanContext", () => {
   });
 });
 
+describe("matchTaskNamesInComment", () => {
+  it("コメント内のタスク名を検出する", () => {
+    const ids = matchTaskNamesInComment(samplePlan, "実装タスクは遅延している");
+    expect(ids).toContain("task-2");
+  });
+});
+
+describe("selectFocusTaskIds", () => {
+  it("対象タスクとコメント言及タスクを含む", () => {
+    const ids = selectFocusTaskIds(samplePlan, "task-1", "実装の進捗を確認");
+    expect(ids.has("task-1")).toBe(true);
+    expect(ids.has("task-2")).toBe(true);
+  });
+});
+
 describe("selectTaskIdsForContext", () => {
   it("対象タスクと依存先を優先する", () => {
     const ids = selectTaskIdsForContext(samplePlan, "task-1", 80);
     expect(ids.has("task-1")).toBe(true);
     expect(ids.has("task-2")).toBe(true);
+  });
+});
+
+describe("serializePlanContextWithinBudget", () => {
+  it("大きい計画では taskLimit を下げてトークン予算内に収める", () => {
+    const manyTasks: ProjectPlan = {
+      ...samplePlan,
+      tasks: Array.from({ length: 40 }, (_, i) => ({
+        id: `task-${i}`,
+        projectId: "proj-1",
+        parentId: null,
+        name: `タスク${i}`,
+        description: `説明${i}`.repeat(20),
+        durationDays: 1,
+        progress: 0,
+        assignee: "",
+        sortOrder: i,
+      })),
+      dependencies: [],
+      cpm: { tasks: [], projectDuration: 40, criticalPath: [] },
+    };
+
+    const full = serializePlanContext(manyTasks, {
+      targetTaskId: "task-0",
+      taskLimit: DEFAULT_PLAN_CONTEXT_TASK_LIMIT,
+    });
+    const within = serializePlanContextWithinBudget(manyTasks, {
+      targetTaskId: "task-0",
+      taskLimit: DEFAULT_PLAN_CONTEXT_TASK_LIMIT,
+    });
+    expect(within.length).toBeLessThanOrEqual(full.length);
+    expect(within.length).toBeGreaterThan(0);
+    const budgetChars = PLAN_CONTEXT_TOKEN_BUDGET * 3;
+    expect(within.length).toBeLessThanOrEqual(budgetChars + 500);
+  });
+});
+
+describe("resolveTaskIdInPlan", () => {
+  it("タスク名から UUID を解決する", () => {
+    expect(resolveTaskIdInPlan("設計", samplePlan)).toBe("task-1");
+    expect(resolveTaskIdInPlan("task-1", samplePlan)).toBe("task-1");
+    expect(resolveTaskIdInPlan("存在しない", samplePlan)).toBeUndefined();
   });
 });
 
@@ -300,6 +373,80 @@ describe("parseAndValidateCommentSuggestions", () => {
       }),
       samplePlan,
     );
-    expect(result[0]?.kind).toBe("update_milestone");
+    expect(result.suggestions[0]?.kind).toBe("update_milestone");
+    expect(result.meta.validatedCount).toBe(1);
+  });
+
+  it("タスク名指定を UUID に解決して検証する", () => {
+    const result = parseAndValidateCommentSuggestions(
+      JSON.stringify({
+        suggestions: [
+          {
+            id: "s1",
+            kind: "update_task",
+            label: "実装の進捗更新",
+            rationale: "理由",
+            taskId: "実装",
+            changes: { progress: 50 },
+          },
+        ],
+      }),
+      samplePlan,
+    );
+    expect(result.suggestions).toHaveLength(1);
+    if (result.suggestions[0]?.kind === "update_task") {
+      expect(result.suggestions[0].taskId).toBe("task-2");
+    }
+  });
+
+  it("description と他タスクの複合提案をパースする", () => {
+    const result = parseAndValidateCommentSuggestions(
+      JSON.stringify({
+        suggestions: [
+          {
+            id: "s1",
+            kind: "update_task",
+            label: "作業内容追記",
+            rationale: "実施内容",
+            taskId: "task-1",
+            changes: { description: "要件定義完了。API実装も完了。" },
+          },
+          {
+            id: "s2",
+            kind: "update_task",
+            label: "実装進捗",
+            rationale: "遅延",
+            taskId: "task-2",
+            changes: { progress: 30 },
+          },
+        ],
+      }),
+      samplePlan,
+    );
+    expect(result.suggestions).toHaveLength(2);
+    expect(result.meta.parsedCount).toBe(2);
+    expect(result.meta.validatedCount).toBe(2);
+  });
+
+  it("パース成功後に計画検証で除外された件数を meta に記録する", () => {
+    const result = parseAndValidateCommentSuggestions(
+      JSON.stringify({
+        suggestions: [
+          {
+            id: "s1",
+            kind: "update_task",
+            label: "NG",
+            rationale: "理由",
+            taskId: "bad-id",
+            changes: { progress: 50 },
+          },
+        ],
+      }),
+      samplePlan,
+    );
+    expect(result.suggestions).toHaveLength(0);
+    expect(result.meta.parsedCount).toBe(1);
+    expect(result.meta.validatedCount).toBe(0);
+    expect(result.meta.filteredCount).toBe(1);
   });
 });

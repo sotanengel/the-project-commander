@@ -54,10 +54,20 @@ test_low_ram_auto_export() {
   unset TPC_OLLAMA_MODEL
 }
 
+test_docker_cap_selects_3b() {
+  unset TPC_OLLAMA_MODEL
+  get_system_ram_bytes() { echo $((16 * 1024 * 1024 * 1024)); }
+  TPC_OLLAMA_DOCKER_RAM_GIB=8
+  resolve_and_export_ollama_model_for_docker
+  assert_eq "qwen2.5:3b-instruct" "${TPC_OLLAMA_MODEL}" "16 GiB host with 8 GiB docker cap selects 3b"
+  unset TPC_OLLAMA_MODEL
+}
+
 test_low_ram_selects_3b
 test_high_ram_selects_7b
 test_explicit_model_skips_auto
 test_low_ram_auto_export
+test_docker_cap_selects_3b
 
 echo ""
 echo "resolve-ollama-model tests: ${passed} passed, ${failed} failed"

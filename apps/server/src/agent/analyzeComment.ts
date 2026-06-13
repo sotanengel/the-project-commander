@@ -1,5 +1,6 @@
 import {
   type CommentSuggestion,
+  type CommentSuggestionsParseMeta,
   buildLocalCommentSuggestionPrompt,
   parseAndValidateCommentSuggestions,
 } from "@tpc/shared";
@@ -15,13 +16,18 @@ export interface AnalyzeCommentInput {
   commentBody: string;
 }
 
+export interface AnalyzeCommentResult {
+  suggestions: CommentSuggestion[];
+  meta: CommentSuggestionsParseMeta;
+}
+
 const RECENT_COMMENT_LIMIT = 10;
 
 export async function analyzeComment(
   db: Db,
   provider: LlmProvider,
   input: AnalyzeCommentInput,
-): Promise<CommentSuggestion[]> {
+): Promise<AnalyzeCommentResult> {
   const task = getTask(db, input.taskId);
   if (!task || task.projectId !== input.projectId) {
     throw new AnalyzeCommentError("not_found", "タスクが見つかりません");
@@ -51,7 +57,13 @@ export async function analyzeComment(
   }
 
   try {
-    return parseAndValidateCommentSuggestions(rawResponse, plan);
+    const { suggestions, meta } = parseAndValidateCommentSuggestions(rawResponse, plan);
+    if (meta.parsedCount > 0 && meta.validatedCount === 0) {
+      console.warn(
+        `[analyzeComment] 提案 ${meta.parsedCount} 件はパースできましたが、計画検証で全件除外されました`,
+      );
+    }
+    return { suggestions, meta };
   } catch (e) {
     throw new AnalyzeCommentError(
       "parse_failed",

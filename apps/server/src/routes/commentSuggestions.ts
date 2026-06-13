@@ -32,12 +32,12 @@ export default async function commentSuggestionRoutes(
       }
 
       try {
-        const suggestions = await localAgent.analyzeComment(db, {
+        const { suggestions, meta } = await localAgent.analyzeComment(db, {
           projectId: body.projectId,
           taskId: req.params.taskId,
           commentBody: body.commentBody,
         });
-        return { suggestions };
+        return { suggestions, meta };
       } catch (e) {
         if (e instanceof AnalyzeCommentError) {
           if (e.kind === "not_found") {

@@ -62,7 +62,13 @@ export default function TaskCommentsSection({
       const result = await api.analyzeCommentSuggestions(taskId, { projectId, commentBody });
       setSuggestions(result.suggestions);
       if (result.suggestions.length === 0) {
-        setAgentNotice("変更提案はありませんでした。");
+        if (result.meta && result.meta.parsedCount > 0 && result.meta.validatedCount === 0) {
+          setAgentNotice(
+            "計画と一致する提案がありませんでした（タスク ID の不一致など）。コメントを具体化して再試行してください。",
+          );
+        } else {
+          setAgentNotice("変更提案はありませんでした。");
+        }
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 503) {

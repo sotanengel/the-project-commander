@@ -13,7 +13,15 @@ function mockLocalAgent(overrides: Partial<LocalAgentService> = {}): LocalAgentS
       ready: true,
       model: "qwen2.5:7b-instruct",
     })),
-    analyzeComment: vi.fn(async () => []),
+    analyzeComment: vi.fn(async () => ({
+      suggestions: [],
+      meta: {
+        rawItemCount: 0,
+        parsedCount: 0,
+        validatedCount: 0,
+        filteredCount: 0,
+      },
+    })),
     ...overrides,
   };
 }
@@ -83,7 +91,15 @@ describe("comment suggestions API", () => {
       },
     ];
     localAgent = mockLocalAgent({
-      analyzeComment: vi.fn(async () => suggestions),
+      analyzeComment: vi.fn(async () => ({
+        suggestions,
+        meta: {
+          rawItemCount: suggestions.length,
+          parsedCount: suggestions.length,
+          validatedCount: suggestions.length,
+          filteredCount: 0,
+        },
+      })),
     });
     await app.close();
     app = await buildApp(createDb(":memory:"), { localAgent });

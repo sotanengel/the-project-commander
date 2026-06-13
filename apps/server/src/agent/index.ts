@@ -1,6 +1,10 @@
-import type { CommentSuggestion } from "@tpc/shared";
+import type { CommentSuggestion, CommentSuggestionsParseMeta } from "@tpc/shared";
 import type { Db } from "../db.js";
-import { type AnalyzeCommentInput, analyzeComment } from "./analyzeComment.js";
+import {
+  type AnalyzeCommentInput,
+  type AnalyzeCommentResult,
+  analyzeComment,
+} from "./analyzeComment.js";
 import { createLlmProvider } from "./createProvider.js";
 import { readLocalAgentEnv } from "./env.js";
 import type { AgentStatus, LlmProvider } from "./types.js";
@@ -8,7 +12,7 @@ import type { AgentStatus, LlmProvider } from "./types.js";
 export interface LocalAgentService {
   init(): Promise<void>;
   getStatus(): AgentStatus;
-  analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<CommentSuggestion[]>;
+  analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<AnalyzeCommentResult>;
 }
 
 export class DisabledLocalAgentService implements LocalAgentService {
@@ -24,7 +28,7 @@ export class DisabledLocalAgentService implements LocalAgentService {
     return this.status;
   }
 
-  async analyzeComment(): Promise<CommentSuggestion[]> {
+  async analyzeComment(): Promise<AnalyzeCommentResult> {
     throw new Error("ローカル LLM エージェントが無効です");
   }
 }
@@ -45,7 +49,7 @@ export class ActiveLocalAgentService implements LocalAgentService {
     return this.status;
   }
 
-  async analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<CommentSuggestion[]> {
+  async analyzeComment(db: Db, input: AnalyzeCommentInput): Promise<AnalyzeCommentResult> {
     if (!this.status.ready || !this.provider) {
       throw new Error("ローカル LLM エージェントが利用できません");
     }

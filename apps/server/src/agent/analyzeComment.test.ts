@@ -48,7 +48,7 @@ describe("analyzeComment", () => {
       taskId,
       commentBody: "半分完了",
     });
-    expect(result).toHaveLength(1);
-    expect(result[0]?.kind).toBe("update_task");
+    expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions[0]?.kind).toBe("update_task");
   });
 });
