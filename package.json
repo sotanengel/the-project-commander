@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.22.0",
   "scripts": {
+    "start": "bash scripts/docker-up-open.sh",
     "dev": "pnpm --parallel --filter @tpc/server --filter @tpc/web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",

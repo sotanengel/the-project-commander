@@ -21,11 +21,19 @@
 ## Docker 起動
 
 ```bash
+cp .env.example .env   # TG_AUTH_TOKEN を設定
+pnpm start             # compose 起動 + 準備完了後にブラウザが開く
+# 停止: Ctrl+C
+```
+
+手動起動:
+
+```bash
 export TG_AUTH_TOKEN=tg_anon_xxxxxxxx
 docker compose up --build
 ```
 
-ブラウザで http://localhost:3000 を開きます。データは `/data` ボリュームに永続化されます。
+`pnpm start` 利用時も、準備完了後に http://localhost:3000 がブラウザで開きます。データは `/data` ボリュームに永続化されます。
 
 ## 開発モード
 
