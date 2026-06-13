@@ -120,3 +120,41 @@
   margin: 0;
   font-size: 13px;
 }
+
+.task-detail-children {
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.task-detail-children-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.task-detail-children h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.task-detail-children ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.task-detail-children li {
+  margin-bottom: 4px;
+}
+
+.task-detail-children a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.task-detail-children a:hover {
+  text-decoration: underline;
+}

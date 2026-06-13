@@ -9,6 +9,8 @@ import {
   NODE_MAX_WIDTH,
   NODE_MIN_WIDTH,
   buildEdgePolyline,
+  clampNetworkZoom,
+  computeFitScale,
   cycleDependencyMessage,
   duplicateDependencyMessage,
   edgeLabel,
@@ -17,6 +19,8 @@ import {
   findDuplicateDependency,
   layoutNetworkGraph,
   leafTasksInWbsOrder,
+  zoomInScale,
+  zoomOutScale,
 } from "./networkModel.js";
 
 describe("edgeLabel", () => {
@@ -298,5 +302,32 @@ describe("buildEdgePolyline", () => {
     };
     const points = buildEdgePolyline(from, to);
     expect(points.split(" ")).toHaveLength(4);
+  });
+});
+
+describe("computeFitScale", () => {
+  it("コンテンツがビューポートより大きい場合は縮小倍率を返す", () => {
+    const scale = computeFitScale(500, 400, 1000, 800, 16);
+    expect(scale).toBeCloseTo(0.48);
+  });
+
+  it("コンテンツがビューポートより小さい場合は拡大倍率を返す", () => {
+    const scale = computeFitScale(500, 400, 200, 100, 16);
+    expect(scale).toBeCloseTo(2.42);
+  });
+});
+
+describe("clampNetworkZoom", () => {
+  it("下限・上限でクランプする", () => {
+    expect(clampNetworkZoom(0.1)).toBe(0.25);
+    expect(clampNetworkZoom(5)).toBe(3);
+    expect(clampNetworkZoom(1)).toBe(1);
+  });
+});
+
+describe("zoomInScale / zoomOutScale", () => {
+  it("拡大・縮小が step 倍率で変化する", () => {
+    expect(zoomInScale(1)).toBeCloseTo(1.25);
+    expect(zoomOutScale(1)).toBeCloseTo(0.8);
   });
 });

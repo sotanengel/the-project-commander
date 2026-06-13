@@ -51,6 +51,44 @@
   fill: var(--color-critical);
 }
 
+/* ネットワーク図チャート */
+.network-chart-wrap {
+  margin-top: 12px;
+}
+
+.network-zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.network-zoom-toolbar button {
+  min-width: 36px;
+  padding: 4px 10px;
+}
+
+.network-zoom-label {
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.network-viewport {
+  height: 480px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.network-scaled {
+  margin: 0 auto;
+}
+
+.network-chart {
+  display: block;
+}
+
 /* 凡例 */
 .network-legend {
   display: flex;

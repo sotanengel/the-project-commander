@@ -43,6 +43,47 @@ export interface NetworkGraphLayout {
   height: number;
 }
 
+/** ズーム倍率の下限 */
+export const NETWORK_ZOOM_MIN = 0.25;
+/** ズーム倍率の上限 */
+export const NETWORK_ZOOM_MAX = 3;
+/** 拡大・縮小ボタン1回あたりの倍率 */
+export const NETWORK_ZOOM_STEP = 1.25;
+/** ビューポート内余白（px） */
+export const NETWORK_VIEWPORT_PADDING = 16;
+/** ビューポートのデフォルト高さ（px） */
+export const NETWORK_VIEWPORT_HEIGHT = 480;
+
+/** コンテンツ全体がビューポートに収まる倍率を算出する */
+export function computeFitScale(
+  viewportWidth: number,
+  viewportHeight: number,
+  contentWidth: number,
+  contentHeight: number,
+  padding = NETWORK_VIEWPORT_PADDING,
+): number {
+  if (viewportWidth <= padding || viewportHeight <= padding) return 1;
+  if (contentWidth <= 0 || contentHeight <= 0) return 1;
+  const availableW = viewportWidth - padding;
+  const availableH = viewportHeight - padding;
+  return Math.min(availableW / contentWidth, availableH / contentHeight);
+}
+
+/** ズーム倍率を許容範囲にクランプする */
+export function clampNetworkZoom(scale: number): number {
+  return Math.min(NETWORK_ZOOM_MAX, Math.max(NETWORK_ZOOM_MIN, scale));
+}
+
+/** 拡大後の倍率 */
+export function zoomInScale(current: number): number {
+  return clampNetworkZoom(current * NETWORK_ZOOM_STEP);
+}
+
+/** 縮小後の倍率 */
+export function zoomOutScale(current: number): number {
+  return clampNetworkZoom(current / NETWORK_ZOOM_STEP);
+}
+
 /** タスク名の文字数からノード幅を推定する */
 export function estimateNodeWidth(name: string): number {
   const charWidth = 12;
