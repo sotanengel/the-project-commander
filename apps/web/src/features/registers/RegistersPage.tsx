@@ -339,6 +339,7 @@ export default function RegistersPage() {
                 <th>影響力</th>
                 <th>関心</th>
                 <th>関与区分</th>
+                <th>関与方針メモ</th>
                 <th />
               </tr>
             </thead>
@@ -383,6 +384,15 @@ export default function RegistersPage() {
                   </td>
                   <td>
                     <span className="badge">{engagementCategory(s.influence, s.interest)}</span>
+                  </td>
+                  <td>
+                    <textarea
+                      className="register-note-input"
+                      defaultValue={s.note}
+                      rows={2}
+                      placeholder="関わり方の方針・メモ"
+                      onBlur={(e) => save(api.updateStakeholder(s.id, { note: e.target.value }))}
+                    />
                   </td>
                   <td>
                     <button type="button" onClick={() => save(api.deleteStakeholder(s.id))}>

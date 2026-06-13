@@ -1,5 +1,7 @@
 import { addDays } from "@tpc/shared";
-import type { Dependency, ProjectPlan, ScheduledTask, Task } from "@tpc/shared";
+import type { Dependency, ProjectPlan, ScheduledTask, Task, TaskCreateInput } from "@tpc/shared";
+import type { TaskEditDraft } from "../wbs/wbsViewModel.js";
+import { validateTaskEdit } from "../wbs/wbsViewModel.js";
 
 export interface LinkedTask {
   id: string;
@@ -98,4 +100,56 @@ export function buildTaskDetailView(plan: ProjectPlan, taskId: string): TaskDeta
 export function formatAssignee(assignee: string): string {
   const trimmed = assignee.trim();
   return trimmed.length > 0 ? trimmed : "未設定";
+}
+
+/** タスク詳細の新規作成モードかどうか */
+export function isTaskCreateMode(taskId: string | undefined): boolean {
+  return taskId === "new";
+}
+
+/** 削除確認ダイアログのメッセージ */
+export function buildTaskDeleteConfirmMessage(taskName: string, childCount: number): string {
+  const base = `タスク「${taskName}」を削除しますか？`;
+  if (childCount <= 0) return `${base} この操作は取り消せません。`;
+  return `${base} 子タスク ${childCount} 件もまとめて削除されます。この操作は取り消せません。`;
+}
+
+/** 作成モードのパンくず（親パンくず + 「新規」） */
+export function buildCreateModeBreadcrumb(parentBreadcrumb: string[]): string[] {
+  return [...parentBreadcrumb, "新規"];
+}
+
+export interface TaskCreateFormDraft extends TaskEditDraft {
+  description: string;
+  assignee: string;
+}
+
+export type TaskCreateInputResult =
+  | { ok: true; value: TaskCreateInput }
+  | { ok: false; errors: string[] };
+
+/** フォーム値から createTask 用ペイロードを組み立てる */
+export function buildTaskCreateInput(
+  draft: TaskCreateFormDraft,
+  parentId: string,
+): TaskCreateInputResult {
+  const result = validateTaskEdit({
+    name: draft.name,
+    duration: draft.duration,
+    progress: draft.progress,
+  });
+  if (!result.ok) {
+    return { ok: false, errors: Object.values(result.errors).filter(Boolean) as string[] };
+  }
+  return {
+    ok: true,
+    value: {
+      name: result.value.name,
+      description: draft.description.trim(),
+      assignee: draft.assignee.trim(),
+      durationDays: result.value.durationDays,
+      progress: result.value.progress ?? 0,
+      parentId,
+    },
+  };
 }

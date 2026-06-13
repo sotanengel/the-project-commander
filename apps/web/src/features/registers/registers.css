@@ -88,3 +88,10 @@ tr.milestone-done input,
 tr.milestone-done select {
   color: var(--color-text-muted);
 }
+
+.register-note-input {
+  width: 100%;
+  min-width: 160px;
+  font-size: 13px;
+  resize: vertical;
+}
