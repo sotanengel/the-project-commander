@@ -7,7 +7,7 @@ import type { Db } from "../db.js";
 import { loadProjectPlan } from "../repositories/project.js";
 import { getTask } from "../repositories/task.js";
 import { listCommentsByTask } from "../repositories/taskComment.js";
-import type { ClaudeCliSession } from "./claudeCliSession.js";
+import type { ClaudeAnalysisSession } from "./claudeCliSession.js";
 
 export interface AnalyzeCommentInput {
   projectId: string;
@@ -19,7 +19,7 @@ const RECENT_COMMENT_LIMIT = 10;
 
 export async function analyzeComment(
   db: Db,
-  session: ClaudeCliSession,
+  session: ClaudeAnalysisSession,
   input: AnalyzeCommentInput,
 ): Promise<CommentSuggestion[]> {
   const task = getTask(db, input.taskId);

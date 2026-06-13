@@ -19,7 +19,6 @@ RUN pnpm --filter @tpc/web build
 ENV NODE_ENV=production
 ENV DB_PATH=/data/tpc.db
 ENV PORT=3000
-ENV TPC_CLI_AGENT=off
 EXPOSE 3000
 VOLUME ["/data"]
 

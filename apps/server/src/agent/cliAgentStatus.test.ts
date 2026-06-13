@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   checkCliAgentStatus,
   isLikelyContainerEnvironment,
+  resolveClaudeHostUrl,
   resolveCliAgentProvider,
+  resolveMcpPublicUrl,
 } from "./cliAgentStatus.js";
 
 describe("resolveCliAgentProvider", () => {
@@ -17,6 +19,36 @@ describe("resolveCliAgentProvider", () => {
 
   it("claude で明示有効", () => {
     expect(resolveCliAgentProvider("claude")).toBe("claude");
+  });
+});
+
+describe("resolveClaudeHostUrl", () => {
+  it("明示 URL を優先する", () => {
+    expect(resolveClaudeHostUrl("http://127.0.0.1:9999")).toBe("http://127.0.0.1:9999");
+  });
+
+  it("コンテナ内では host.docker.internal を使う", () => {
+    const previous = process.env.TPC_IN_CONTAINER;
+    process.env.TPC_IN_CONTAINER = "1";
+    try {
+      expect(resolveClaudeHostUrl(undefined)).toBe("http://host.docker.internal:9477");
+    } finally {
+      if (previous === undefined) process.env.TPC_IN_CONTAINER = undefined;
+      else process.env.TPC_IN_CONTAINER = previous;
+    }
+  });
+});
+
+describe("resolveMcpPublicUrl", () => {
+  it("TPC_MCP_PUBLIC_URL を優先する", () => {
+    const previous = process.env.TPC_MCP_PUBLIC_URL;
+    process.env.TPC_MCP_PUBLIC_URL = "http://127.0.0.1:3001/mcp";
+    try {
+      expect(resolveMcpPublicUrl(3000)).toBe("http://127.0.0.1:3001/mcp");
+    } finally {
+      if (previous === undefined) process.env.TPC_MCP_PUBLIC_URL = undefined;
+      else process.env.TPC_MCP_PUBLIC_URL = previous;
+    }
   });
 });
 
@@ -39,20 +71,19 @@ describe("checkCliAgentStatus auto", () => {
     expect(status.message).toContain("Claude CLI が見つかりません");
   });
 
-  it("コンテナ環境では CLI 探索前に無効化する", async () => {
-    const previous = process.env.TPC_IN_CONTAINER;
-    process.env.TPC_IN_CONTAINER = "1";
-    try {
-      const status = await checkCliAgentStatus({
-        provider: "auto",
-        claudeBin: "claude",
-      });
-      expect(status.ready).toBe(false);
-      expect(status.message).toContain("Docker コンテナ内");
-    } finally {
-      if (previous === undefined) process.env.TPC_IN_CONTAINER = undefined;
-      else process.env.TPC_IN_CONTAINER = previous;
-    }
+  it("ホストエージェント URL 指定時は health を確認する", async () => {
+    const status = await checkCliAgentStatus({
+      provider: "auto",
+      claudeBin: "claude",
+      claudeHostUrl: "http://127.0.0.1:9477",
+      fetchImpl: async () =>
+        ({
+          ok: true,
+          json: async () => ({ ok: true, claudeVersion: "2.1.0" }),
+        }) as Response,
+    });
+    expect(status.ready).toBe(true);
+    expect(status.message).toContain("Claude");
   });
 });
 

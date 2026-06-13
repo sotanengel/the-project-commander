@@ -164,10 +164,11 @@ Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP �
 ### 前提
 
 1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストールし、`claude auth login` 等でログイン済み
-2. **追加設定は通常不要** — サーバーは PATH 上の `claude` を自動検出します（`TPC_CLI_AGENT=auto` がデフォルト）
-3. 無効にする場合のみ `.env` に `TPC_CLI_AGENT=off` を設定
+2. **Docker 起動（`pnpm start`）** 時は、ホスト上で Claude host agent が自動起動し、コンテナから MCP 経由で AI 提案します（追加設定不要）
+3. **ローカル開発（`pnpm dev`）** ではサーバーが直接 `claude` を実行します
+4. 無効化する場合のみ `.env` に `TPC_CLI_AGENT=off`
 
-サーバー起動時に CLI セッションがバックグラウンドで準備され、分析ごとに `/reset` でセッションが初期化されます。MCP ツール呼び出しは非対話のため `--dangerously-skip-permissions` を付与します（`TPC_CLAUDE_SKIP_PERMISSIONS=0` で無効化可）。MCP 設定（`/mcp` への接続）はサーバーが自動生成するため、手動設定は不要です。
+`pnpm start` 実行時に `claude` が PATH にあると、ポート **9477** で host agent が起動します。分析ごとに `/reset` 後、host agent 経由で MCP（公開ポート `/mcp`）に接続します。
 
 ### 操作
 
@@ -176,8 +177,6 @@ Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP �
 3. 提案カードの **反映** で変更を適用、**スキップ** で個別に dismiss
 
 CLI 未設定時もコメント保存は成功します（AI 提案のみ省略）。
-
-**Docker（`pnpm start` / `docker compose`）では AI 提案は利用できません。** コンテナ内からホストの Claude CLI や macOS の認証情報にアクセスできないためです。AI 提案を使う場合は **`pnpm dev`** で API サーバーをローカル起動してください（Web は http://localhost:5173、API はホスト上の Node.js が `claude` を実行します）。
 
 ## AIアシスト（プロンプト方式）
 

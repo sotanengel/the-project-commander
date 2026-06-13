@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { promisify } from "node:util";
+import { checkHostAgentHealth } from "./claudeHostClientSession.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -14,7 +15,9 @@ export interface CliAgentStatus {
 export interface CliAgentStatusOptions {
   provider: string;
   claudeBin: string;
+  claudeHostUrl?: string;
   execFileImpl?: typeof execFile;
+  fetchImpl?: typeof fetch;
 }
 
 /** 環境変数 TPC_CLI_AGENT を解決する（未設定時は auto） */
@@ -54,10 +57,23 @@ function readCgroup(path: string): string {
   return readFileSync(path, "utf8");
 }
 
-const CONTAINER_CLI_MESSAGE =
-  "Docker コンテナ内ではホストの Claude CLI を実行できません。AI 提案を使う場合は `pnpm dev` でサーバーをローカル起動してください。";
+export function resolveClaudeHostUrl(raw: string | undefined): string | undefined {
+  if (raw?.trim()) return raw.trim().replace(/\/$/, "");
+  if (isLikelyContainerEnvironment()) {
+    const port = process.env.TPC_CLAUDE_HOST_PORT ?? "9477";
+    return `http://host.docker.internal:${port}`;
+  }
+  return undefined;
+}
 
-/** claude CLI の実行可能性を確認する */
+/** ホストから MCP に到達する URL（Docker 時は公開ポートを使う） */
+export function resolveMcpPublicUrl(port: number): string {
+  const explicit = process.env.TPC_MCP_PUBLIC_URL?.trim();
+  if (explicit) return explicit;
+  return `http://127.0.0.1:${port}/mcp`;
+}
+
+/** claude CLI / ホストエージェントの実行可能性を確認する */
 export async function checkCliAgentStatus(options: CliAgentStatusOptions): Promise<CliAgentStatus> {
   if (options.provider === "off") {
     return {
@@ -68,12 +84,23 @@ export async function checkCliAgentStatus(options: CliAgentStatusOptions): Promi
     };
   }
 
-  if (isLikelyContainerEnvironment()) {
+  if (options.claudeHostUrl) {
+    const health = await checkHostAgentHealth(options.claudeHostUrl, options.fetchImpl);
+    if (!health.ok) {
+      return {
+        provider: "claude",
+        ready: false,
+        mcpConnected: false,
+        message:
+          health.message ??
+          "ホスト Claude エージェントに接続できません。`pnpm start` で起動しているか確認してください。",
+      };
+    }
     return {
-      provider: "off",
-      ready: false,
-      mcpConnected: false,
-      message: CONTAINER_CLI_MESSAGE,
+      provider: "claude",
+      ready: true,
+      mcpConnected: true,
+      message: health.message ?? "ホスト Claude エージェント経由",
     };
   }
 
@@ -116,12 +143,17 @@ export function readCliAgentEnv(): {
   timeoutMs: number;
   port: number;
   skipPermissions: boolean;
+  claudeHostUrl?: string;
+  mcpPublicUrl: string;
 } {
+  const port = Number(process.env.PORT ?? 3000);
   return {
     provider: resolveCliAgentProvider(process.env.TPC_CLI_AGENT),
     claudeBin: process.env.TPC_CLAUDE_BIN ?? "claude",
     timeoutMs: Number(process.env.TPC_CLAUDE_TIMEOUT_MS ?? 120_000),
-    port: Number(process.env.PORT ?? 3000),
+    port,
     skipPermissions: isTruthyEnv(process.env.TPC_CLAUDE_SKIP_PERMISSIONS, true),
+    claudeHostUrl: resolveClaudeHostUrl(process.env.TPC_CLAUDE_HOST),
+    mcpPublicUrl: resolveMcpPublicUrl(port),
   };
 }
