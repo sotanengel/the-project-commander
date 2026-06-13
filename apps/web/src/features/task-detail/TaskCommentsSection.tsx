@@ -67,7 +67,10 @@ export default function TaskCommentsSection({
     } catch (e) {
       if (e instanceof ApiError && e.status === 503) {
         setDialogOpen(false);
-        setAgentNotice("AI 提案は現在利用できません（Claude CLI 未設定）。");
+        setAgentNotice(
+          e.message ||
+            "AI 提案は現在利用できません。Claude CLI のインストールとサーバー再起動を確認してください。",
+        );
         return;
       }
       setSuggestions([]);

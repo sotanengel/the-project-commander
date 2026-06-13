@@ -14,6 +14,7 @@ export interface ClaudeCliSessionOptions {
   claudeBin: string;
   port: number;
   timeoutMs: number;
+  skipPermissions?: boolean;
   spawnImpl?: typeof spawn;
   mcpConfigFactory?: (port: number) => McpConfigPaths;
 }
@@ -77,6 +78,10 @@ export class ClaudeCliSession {
 
     if (prompt !== "/reset") {
       args.push("--allowedTools", COMMENT_SUGGESTION_ALLOWED_MCP_TOOLS.join(","));
+    }
+
+    if (this.options.skipPermissions !== false) {
+      args.push("--dangerously-skip-permissions");
     }
 
     return new Promise((resolve, reject) => {

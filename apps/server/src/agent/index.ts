@@ -40,8 +40,12 @@ export class ClaudeCliAgentService implements CliAgentService {
 
   constructor(
     private readonly env = readCliAgentEnv(),
-    private readonly sessionFactory = (port: number, timeoutMs: number, claudeBin: string) =>
-      new ClaudeCliSession({ claudeBin, port, timeoutMs }),
+    private readonly sessionFactory = (
+      port: number,
+      timeoutMs: number,
+      claudeBin: string,
+      skipPermissions: boolean,
+    ) => new ClaudeCliSession({ claudeBin, port, timeoutMs, skipPermissions }),
   ) {}
 
   async init(): Promise<void> {
@@ -51,7 +55,12 @@ export class ClaudeCliAgentService implements CliAgentService {
     });
     if (!this.status.ready) return;
 
-    this.session = this.sessionFactory(this.env.port, this.env.timeoutMs, this.env.claudeBin);
+    this.session = this.sessionFactory(
+      this.env.port,
+      this.env.timeoutMs,
+      this.env.claudeBin,
+      this.env.skipPermissions,
+    );
     await this.session.start();
     this.status = {
       ...this.status,
@@ -77,7 +86,7 @@ export class ClaudeCliAgentService implements CliAgentService {
 }
 
 export function createCliAgentService(env = readCliAgentEnv()): CliAgentService {
-  if (env.provider !== "claude") {
+  if (env.provider === "off") {
     return new DisabledCliAgentService();
   }
   return new ClaudeCliAgentService(env);

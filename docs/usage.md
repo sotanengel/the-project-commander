@@ -163,11 +163,11 @@ Cursor / Claude Desktop 等では MCP 設定に上記 URL を Streamable HTTP �
 
 ### 前提
 
-1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストール
-2. `claude auth login` 等でログイン済み
-3. `.env` に `TPC_CLI_AGENT=claude` を設定（未設定時は `off` で AI 提案はスキップ）
+1. [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)（`claude` コマンド）をインストールし、`claude auth login` 等でログイン済み
+2. **追加設定は通常不要** — サーバーは PATH 上の `claude` を自動検出します（`TPC_CLI_AGENT=auto` がデフォルト）
+3. 無効にする場合のみ `.env` に `TPC_CLI_AGENT=off` を設定
 
-サーバー起動時に CLI セッションがバックグラウンドで準備され、分析ごとに `/reset` でセッションが初期化されます。MCP 設定（`/mcp` への接続）はサーバーが自動生成するため、手動設定は不要です。
+サーバー起動時に CLI セッションがバックグラウンドで準備され、分析ごとに `/reset` でセッションが初期化されます。MCP ツール呼び出しは非対話のため `--dangerously-skip-permissions` を付与します（`TPC_CLAUDE_SKIP_PERMISSIONS=0` で無効化可）。MCP 設定（`/mcp` への接続）はサーバーが自動生成するため、手動設定は不要です。
 
 ### 操作
 
