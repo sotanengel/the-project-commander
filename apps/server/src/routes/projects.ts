@@ -1,7 +1,28 @@
-import { type Project, ProjectCreateSchema, ProjectSchema } from "@tpc/shared";
-import type { FastifyInstance } from "fastify";
+import {
+  type Project,
+  ProjectCreateSchema,
+  ProjectSchema,
+  buildAiImportManifest,
+} from "@tpc/shared";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { type Db, newId } from "../db.js";
 import { loadProjectPlan } from "../repositories/project.js";
+
+function resolveAppOrigin(req: FastifyRequest): string {
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) return origin;
+  const referer = req.headers.referer;
+  if (typeof referer === "string") {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      /* fall through */
+    }
+  }
+  const host = req.headers.host ?? "localhost:3000";
+  const proto = (req.headers["x-forwarded-proto"] as string | undefined) ?? "http";
+  return `${proto}://${host}`;
+}
 
 export default async function projectRoutes(app: FastifyInstance, { db }: { db: Db }) {
   app.get("/api/projects", async () => {
@@ -54,4 +75,15 @@ export default async function projectRoutes(app: FastifyInstance, { db }: { db: 
     if (!plan) return reply.code(404).send({ error: "プロジェクトが見つかりません" });
     return plan;
   });
+
+  /** 生成AIのWeb検索・ブラウジング向けタスク取り込み仕様 */
+  app.get<{ Params: { id: string } }>(
+    "/api/projects/:id/ai-import-manifest",
+    async (req, reply) => {
+      const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+      if (!row) return reply.code(404).send({ error: "プロジェクトが見つかりません" });
+      const project = ProjectSchema.parse(row);
+      return buildAiImportManifest(project, resolveAppOrigin(req));
+    },
+  );
 }

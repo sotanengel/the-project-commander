@@ -105,6 +105,23 @@ describe("projects API", () => {
     });
   });
 
+  describe("ai-import-manifest", () => {
+    it("取り込み仕様JSONを返す", async () => {
+      const project = await createProject(app);
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/projects/${project.id}/ai-import-manifest`,
+        headers: { origin: "http://localhost:3001" },
+      });
+      expect(res.statusCode).toBe(200);
+      const manifest = res.json();
+      expect(manifest.project.id).toBe(project.id);
+      expect(manifest.methods[0].url).toBe(
+        `http://localhost:3001/api/projects/${project.id}/tasks/bulk`,
+      );
+    });
+  });
+
   describe("404系", () => {
     it("存在しないプロジェクトのGET/PUT/DELETE/planは404で{error}形式", async () => {
       const cases = [

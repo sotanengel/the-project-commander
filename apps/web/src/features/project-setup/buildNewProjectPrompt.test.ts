@@ -18,16 +18,17 @@ describe("buildNewProjectPrompt", () => {
     expect(prompt).toContain("2026-06-10");
   });
 
-  it("projectId が MCP 指示に含まれる", () => {
+  it("Web検索・ブラウジングでの取り込み指示を含む", () => {
     const prompt = buildNewProjectPrompt(sampleProject, "http://localhost:3001");
-    expect(prompt).toContain("proj-abc123");
-    expect(prompt).toContain('projectId: "proj-abc123"');
+    expect(prompt).toContain("Web検索・ブラウジング");
+    expect(prompt).toContain("http://localhost:3001/api/projects/proj-abc123/ai-import-manifest");
+    expect(prompt).toContain("http://localhost:3001/api/projects/proj-abc123/tasks/bulk");
+    expect(prompt).toContain("http://localhost:3001/projects/proj-abc123/setup?payload=");
   });
 
-  it("appOrigin から AIアシストURL・MCP URL が組み立てられる", () => {
+  it("ユーザーへの生JSON返却を禁止する指示を含む", () => {
     const prompt = buildNewProjectPrompt(sampleProject, "http://localhost:3001");
-    expect(prompt).toContain("http://localhost:3001/projects/proj-abc123/ai");
-    expect(prompt).toContain("http://localhost:3001/mcp");
+    expect(prompt).toContain("ユーザーへの返答に生JSONは含めない");
   });
 
   it("WBS JSONスキーマ指示が含まれる", () => {

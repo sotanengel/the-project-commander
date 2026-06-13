@@ -1,13 +1,10 @@
+import { WBS_DRAFT_OUTPUT_SCHEMA } from "@tpc/shared";
 import type { ProjectPlan } from "@tpc/shared";
 
 export type PromptPurpose = "wbs_draft" | "task_breakdown" | "risk_identify" | "dependencies";
 
 const SCHEMAS: Record<PromptPurpose, string> = {
-  wbs_draft: `{
-  "tasks": [
-    { "name": "フェーズ名", "durationDays": 5, "children": [{ "name": "ワークパッケージ" }] }
-  ]
-}`,
+  wbs_draft: WBS_DRAFT_OUTPUT_SCHEMA,
   task_breakdown: `{
   "tasks": [{ "name": "タスク名", "durationDays": 3, "description": "任意" }]
 }`,
@@ -18,9 +15,6 @@ const SCHEMAS: Record<PromptPurpose, string> = {
   "dependencies": [{ "predecessorName": "先行タスク名", "successorName": "後続タスク名", "type": "FS", "lagDays": 0 }]
 }`,
 };
-
-/** 新規プロジェクトのWBSドラフト生成で使う出力スキーマ */
-export const WBS_DRAFT_OUTPUT_SCHEMA = SCHEMAS.wbs_draft;
 
 const INSTRUCTIONS: Record<PromptPurpose, string> = {
   wbs_draft: "与えられたプロジェクト情報をもとに、WBSのドラフト（階層タスク）を作成してください。",

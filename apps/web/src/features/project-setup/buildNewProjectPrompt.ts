@@ -1,12 +1,14 @@
 import type { Project } from "@tpc/shared";
-import { WBS_DRAFT_OUTPUT_SCHEMA } from "../ai-assist/prompts.js";
+import { buildAiImportManifest } from "@tpc/shared";
 
 /**
  * 新規プロジェクト作成直後にAIへ渡すWBSドラフト生成プロンプトを組み立てる。
  */
 export function buildNewProjectPrompt(project: Project, appOrigin: string): string {
-  const aiAssistUrl = `${appOrigin}/projects/${project.id}/ai`;
-  const mcpUrl = `${appOrigin}/mcp`;
+  const manifestUrl = `${appOrigin}/api/projects/${project.id}/ai-import-manifest`;
+  const bulkUrl = `${appOrigin}/api/projects/${project.id}/tasks/bulk`;
+  const setupUrl = `${appOrigin}/projects/${project.id}/setup`;
+  const manifest = buildAiImportManifest(project, appOrigin);
 
   const projectInfo = JSON.stringify(
     {
@@ -27,14 +29,23 @@ export function buildNewProjectPrompt(project: Project, appOrigin: string): stri
     "【プロジェクト情報】",
     projectInfo,
     "",
-    "【出力形式】次のスキーマに従ったJSONオブジェクトを1つだけ返してください。",
-    "説明文・前置き・コードフェンス（```）は不要です。",
-    WBS_DRAFT_OUTPUT_SCHEMA,
+    "【出力形式】次のスキーマに従ったJSONオブジェクトを1つだけ生成してください。",
+    manifest.outputSchema,
     "",
-    "【取り込み先（ローカル環境）】",
-    `- 手動取り込み画面: ${aiAssistUrl}`,
-    "  → 生成したJSONを「AI応答JSONの取り込み」欄に貼り付けて検証・取り込み",
-    `- MCP自動登録: ${mcpUrl}`,
-    `  → add_tasks ツールを projectId: "${project.id}" で呼び出し、上記スキーマの tasks 配列を渡す`,
+    "【重要：タスクの登録（必須）— Web検索・ブラウジングを使用すること】",
+    "WBS生成後、ユーザーにJSONを貼り付けさせるのではなく、必ずWeb検索またはブラウジング機能を使いタスクをブラウザアプリへ直接送信してください。",
+    "ユーザーへの返答に生JSONは含めないでください。登録完了のみ報告してください。",
+    "",
+    "手順:",
+    `1. Web検索・ブラウジングで取り込み仕様を確認: ${manifestUrl}`,
+    "2. 次のいずれかでタスクを登録:",
+    `   方法A（推奨）: POST ${bulkUrl}`,
+    "        Header: Content-Type: application/json",
+    '        Body: {"tasks": [生成した階層タスク配列]}',
+    "   方法B: ブラウザで次のURLを開く（payload に URLエンコードした JSON を付与）:",
+    `        ${setupUrl}?payload={encodeURIComponent(JSON.stringify({tasks:[...]}))}`,
+    "",
+    "【取り込み仕様（参照用）】",
+    JSON.stringify(manifest, null, 2),
   ].join("\n");
 }
