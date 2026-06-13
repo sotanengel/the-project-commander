@@ -16,7 +16,7 @@ describe("dependencies API", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "依存テスト", startDate: "2026-06-10" },
+      payload: { name: "依存テスト", description: "テスト概要", startDate: "2026-06-10" },
     });
     projectId = res.json().id;
     [taskA, taskB, taskC] = (

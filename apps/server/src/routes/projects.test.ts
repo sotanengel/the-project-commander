@@ -7,7 +7,7 @@ async function createProject(app: FastifyInstance, name = "テストPJ") {
   const res = await app.inject({
     method: "POST",
     url: "/api/projects",
-    payload: { name, startDate: "2026-06-10" },
+    payload: { name, description: "テスト概要", startDate: "2026-06-10" },
   });
   return res.json();
 }
@@ -62,6 +62,16 @@ describe("projects API", () => {
         expect(res.statusCode).toBe(400);
         expect(typeof res.json().error).toBe("string");
       }
+    });
+
+    it("POSTで概要が空の場合は400", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/projects",
+        payload: { name: "テスト", description: "", startDate: "2026-06-10" },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(typeof res.json().error).toBe("string");
     });
 
     it("DELETEでプロジェクトが消え、配下のタスク・依存関係もカスケード削除される", async () => {

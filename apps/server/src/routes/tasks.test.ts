@@ -14,7 +14,7 @@ describe("tasks API", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "タスクテスト", startDate: "2026-06-10" },
+      payload: { name: "タスクテスト", description: "テスト概要", startDate: "2026-06-10" },
     });
     projectId = res.json().id;
   });
@@ -54,7 +54,7 @@ describe("tasks API", () => {
         await app.inject({
           method: "POST",
           url: "/api/projects",
-          payload: { name: "別PJ", startDate: "2026-06-10" },
+          payload: { name: "別PJ", description: "テスト概要", startDate: "2026-06-10" },
         })
       ).json();
       const otherTask = (

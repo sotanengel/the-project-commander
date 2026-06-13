@@ -17,44 +17,83 @@
   margin: 0;
 }
 
-/* 作成フォーム */
-.project-create-form .row {
-  align-items: flex-end;
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
-.project-create-form label {
+/* モーダル */
+.modal-dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+}
+
+.modal-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  margin: 0;
+}
+
+.modal-title {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.modal-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-bottom: 12px;
   font-size: 13px;
   color: var(--color-text-muted);
 }
 
-.project-create-form .grow {
-  flex: 1;
-  min-width: 200px;
+.modal-field input,
+.modal-field textarea {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* セットアップ画面 */
+.setup-steps {
+  margin: 12px 0 16px;
+  padding-left: 1.25rem;
+  font-size: 14px;
+}
+
+.setup-steps li {
+  margin-bottom: 6px;
+}
+
+.setup-links {
+  gap: 16px;
+}
+
+.setup-links a {
+  font-size: 14px;
 }
 
 .form-field-error {
-  margin: 8px 0 0;
+  margin: 0 0 8px;
   font-size: 13px;
-}
-
-.project-create-details {
-  margin-top: 8px;
-}
-
-.project-create-details summary {
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  user-select: none;
-}
-
-.project-create-details textarea {
-  width: 100%;
-  margin-top: 8px;
-  resize: vertical;
 }
 
 /* カードグリッド */

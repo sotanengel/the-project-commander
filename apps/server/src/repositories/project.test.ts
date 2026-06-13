@@ -22,7 +22,7 @@ describe("project repository", () => {
       const create = await app.inject({
         method: "POST",
         url: "/api/projects",
-        payload: { name: "P", startDate: "2025-01-01" },
+        payload: { name: "P", description: "テスト概要", startDate: "2025-01-01" },
       });
       const project = create.json();
       await app.inject({

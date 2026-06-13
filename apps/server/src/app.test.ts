@@ -25,7 +25,7 @@ describe("API smoke", () => {
     const projectRes = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "テスト", startDate: "2026-06-10" },
+      payload: { name: "テスト", description: "テスト概要", startDate: "2026-06-10" },
     });
     expect(projectRes.statusCode).toBe(201);
     const project = projectRes.json();
@@ -62,7 +62,7 @@ describe("API smoke", () => {
       await app.inject({
         method: "POST",
         url: "/api/projects",
-        payload: { name: "循環", startDate: "2026-06-10" },
+        payload: { name: "循環", description: "テスト概要", startDate: "2026-06-10" },
       })
     ).json();
     const [a, b] = (

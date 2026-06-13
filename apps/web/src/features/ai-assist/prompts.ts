@@ -19,6 +19,9 @@ const SCHEMAS: Record<PromptPurpose, string> = {
 }`,
 };
 
+/** 新規プロジェクトのWBSドラフト生成で使う出力スキーマ */
+export const WBS_DRAFT_OUTPUT_SCHEMA = SCHEMAS.wbs_draft;
+
 const INSTRUCTIONS: Record<PromptPurpose, string> = {
   wbs_draft: "与えられたプロジェクト情報をもとに、WBSのドラフト（階層タスク）を作成してください。",
   task_breakdown: "選択したタスクをさらに分解したワークパッケージ案を作成してください。",

@@ -19,8 +19,10 @@ export const ProjectSchema = z.object({
 });
 export type Project = z.infer<typeof ProjectSchema>;
 
-export const ProjectCreateSchema = ProjectSchema.omit({ id: true, createdAt: true }).partial({
-  description: true,
+export const ProjectCreateSchema = z.object({
+  name: z.string().min(1, "プロジェクト名は必須です"),
+  description: z.string().min(1, "プロジェクトの概要は必須です"),
+  startDate: DateStringSchema,
 });
 export type ProjectCreateInput = z.infer<typeof ProjectCreateSchema>;
 

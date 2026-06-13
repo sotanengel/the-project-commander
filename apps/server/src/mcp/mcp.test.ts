@@ -655,7 +655,7 @@ describe("POST /mcp（Streamable HTTP）", () => {
       expect(tools).toHaveLength(14);
       const result = await client.callTool({
         name: "create_project",
-        arguments: { name: "HTTP経由PJ", startDate: "2026-07-01" },
+        arguments: { name: "HTTP経由PJ", description: "HTTP経由の概要", startDate: "2026-07-01" },
       });
       const project = resultJson(result) as { name: string };
       expect(project.name).toBe("HTTP経由PJ");
