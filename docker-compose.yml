@@ -6,11 +6,6 @@ services:
         TG_AUTH_TOKEN: ${TG_AUTH_TOKEN:-}
     ports:
       - "${TPC_HOST_PORT:-3000}:3000"
-    environment:
-      TPC_CLAUDE_HOST: http://host.docker.internal:${TPC_CLAUDE_HOST_PORT:-9477}
-      TPC_MCP_PUBLIC_URL: http://127.0.0.1:${TPC_HOST_PORT:-3000}/mcp
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - tpc-data:/data
     restart: unless-stopped

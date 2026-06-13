@@ -8,7 +8,6 @@ source "${SCRIPT_DIR}/lib/docker-up-open.sh"
 wait_pid=""
 
 cleanup() {
-  stop_claude_host_agent
   if [[ -n "${wait_pid}" ]] && kill -0 "${wait_pid}" 2>/dev/null; then
     kill "${wait_pid}" 2>/dev/null || true
     wait "${wait_pid}" 2>/dev/null || true
@@ -18,7 +17,6 @@ cleanup() {
 main() {
   load_env_file ".env"
   prepare_docker_runtime
-  start_claude_host_agent
 
   wait_for_health &
   wait_pid=$!

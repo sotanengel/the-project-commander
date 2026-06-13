@@ -8,4 +8,3 @@ export * from "./ai-import/decode.js";
 export * from "./ai-import/parsePlanDraft.js";
 export * from "./ai-import/resolveDependencies.js";
 export * from "./ai-prompts/index.js";
-export * from "./comment-suggestions/index.js";
