@@ -4,6 +4,7 @@ HOST_PORT="${TPC_HOST_PORT:-3000}"
 APP_URL="${TPC_APP_URL:-http://localhost:${HOST_PORT}}"
 HEALTH_URL="${APP_URL}/api/health"
 MAX_WAIT="${TPC_HEALTH_TIMEOUT:-120}"
+CLAUDE_HOST_AGENT_PID=""
 
 configure_runtime() {
   local host_port="$1"
@@ -105,6 +106,7 @@ prepare_docker_runtime() {
   host_port="$(find_available_port "${TPC_HOST_PORT:-3000}")"
   export TPC_HOST_PORT="${host_port}"
   configure_runtime "${host_port}"
+  export TPC_MCP_PUBLIC_URL="http://127.0.0.1:${HOST_PORT}/mcp"
   {
     echo ""
     echo "=========================================="
@@ -115,4 +117,46 @@ prepare_docker_runtime() {
     echo "=========================================="
     echo ""
   } >&2
+}
+
+start_claude_host_agent() {
+  local agent_port="${TPC_CLAUDE_HOST_PORT:-9477}"
+
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "Warning: claude CLI が見つかりません。コメント AI 提案は利用できません。" >&2
+    return 0
+  fi
+
+  if curl -fsS "http://127.0.0.1:${agent_port}/health" >/dev/null 2>&1; then
+    echo "Claude host agent: http://127.0.0.1:${agent_port} (already running)" >&2
+    return 0
+  fi
+
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  (
+    cd "${repo_root}"
+    TPC_CLAUDE_HOST_PORT="${agent_port}" pnpm --filter @tpc/server claude-host-agent
+  ) &
+  CLAUDE_HOST_AGENT_PID=$!
+
+  local elapsed=0
+  while [[ "${elapsed}" -lt 30 ]]; do
+    if curl -fsS "http://127.0.0.1:${agent_port}/health" >/dev/null 2>&1; then
+      echo "Claude host agent: http://127.0.0.1:${agent_port}" >&2
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
+  echo "Warning: Claude host agent did not become ready on port ${agent_port}." >&2
+}
+
+stop_claude_host_agent() {
+  if [[ -n "${CLAUDE_HOST_AGENT_PID}" ]] && kill -0 "${CLAUDE_HOST_AGENT_PID}" 2>/dev/null; then
+    kill "${CLAUDE_HOST_AGENT_PID}" 2>/dev/null || true
+    wait "${CLAUDE_HOST_AGENT_PID}" 2>/dev/null || true
+    CLAUDE_HOST_AGENT_PID=""
+  fi
 }

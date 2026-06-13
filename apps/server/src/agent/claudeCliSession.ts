@@ -1,40 +1,51 @@
-import { spawn } from "node:child_process";
-import { COMMENT_SUGGESTION_ALLOWED_MCP_TOOLS } from "@tpc/shared";
+import { extractClaudePrintResult, runClaudePrintCommand } from "./claudeCommand.js";
 import { CliJobQueue } from "./cliJobQueue.js";
-import { type McpConfigPaths, createMcpConfigFile } from "./mcpConfig.js";
+import { createMcpConfigFile } from "./mcpConfig.js";
 
-export interface ClaudePrintResponse {
-  type?: string;
-  subtype?: string;
-  is_error?: boolean;
-  result?: string;
+export { extractClaudePrintResult };
+
+export interface ClaudeAnalysisSession {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  isStarted(): boolean;
+  runAnalysis(prompt: string): Promise<string>;
 }
 
 export interface ClaudeCliSessionOptions {
   claudeBin: string;
   port: number;
   timeoutMs: number;
-  spawnImpl?: typeof spawn;
-  mcpConfigFactory?: (port: number) => McpConfigPaths;
+  skipPermissions?: boolean;
+  mcpPublicUrl?: string;
 }
 
-export class ClaudeCliSession {
+export class ClaudeCliSession implements ClaudeAnalysisSession {
   private readonly queue = new CliJobQueue();
-  private mcpConfig: McpConfigPaths | null = null;
+  private mcpConfigPath: string | null = null;
+  private cleanupMcp: (() => void) | null = null;
   private started = false;
 
   constructor(private readonly options: ClaudeCliSessionOptions) {}
 
   async start(): Promise<void> {
     if (this.started) return;
-    const factory = this.options.mcpConfigFactory ?? createMcpConfigFile;
-    this.mcpConfig = factory(this.options.port);
+    if (this.options.mcpPublicUrl) {
+      const { createMcpConfigFileFromUrl } = await import("./claudeCommand.js");
+      const cfg = createMcpConfigFileFromUrl(this.options.mcpPublicUrl);
+      this.mcpConfigPath = cfg.configPath;
+      this.cleanupMcp = cfg.cleanup;
+    } else {
+      const cfg = createMcpConfigFile(this.options.port);
+      this.mcpConfigPath = cfg.configPath;
+      this.cleanupMcp = cfg.cleanup;
+    }
     this.started = true;
   }
 
   async stop(): Promise<void> {
-    this.mcpConfig?.cleanup();
-    this.mcpConfig = null;
+    this.cleanupMcp?.();
+    this.mcpConfigPath = null;
+    this.cleanupMcp = null;
     this.started = false;
   }
 
@@ -42,14 +53,9 @@ export class ClaudeCliSession {
     return this.started;
   }
 
-  getMcpConfigPath(): string | null {
-    return this.mcpConfig?.configPath ?? null;
-  }
-
-  /** 分析ジョブ: /reset 後にプロンプトを実行する */
   runAnalysis(prompt: string): Promise<string> {
     return this.queue.enqueue(async () => {
-      if (!this.mcpConfig) {
+      if (!this.mcpConfigPath) {
         throw new Error("Claude CLI セッションが開始されていません");
       }
       await this.runClaudeCommand("/reset");
@@ -58,92 +64,15 @@ export class ClaudeCliSession {
   }
 
   private runClaudeCommand(prompt: string): Promise<string> {
-    const mcpConfig = this.mcpConfig;
-    if (!mcpConfig) {
+    if (!this.mcpConfigPath) {
       return Promise.reject(new Error("Claude CLI セッションが開始されていません"));
     }
-
-    const spawnImpl = this.options.spawnImpl ?? spawn;
-    const args = [
-      "-p",
+    return runClaudePrintCommand({
+      claudeBin: this.options.claudeBin,
       prompt,
-      "--output-format",
-      "json",
-      "--strict-mcp-config",
-      "--no-session-persistence",
-      "--mcp-config",
-      mcpConfig.configPath,
-    ];
-
-    if (prompt !== "/reset") {
-      args.push("--allowedTools", COMMENT_SUGGESTION_ALLOWED_MCP_TOOLS.join(","));
-    }
-
-    return new Promise((resolve, reject) => {
-      const child = spawnImpl(this.options.claudeBin, args, {
-        stdio: ["ignore", "pipe", "pipe"],
-        env: process.env,
-      });
-
-      let stdout = "";
-      let stderr = "";
-      child.stdout?.on("data", (chunk: Buffer) => {
-        stdout += chunk.toString();
-      });
-      child.stderr?.on("data", (chunk: Buffer) => {
-        stderr += chunk.toString();
-      });
-
-      const timer = setTimeout(() => {
-        child.kill("SIGTERM");
-        reject(new Error(`Claude CLI がタイムアウトしました (${this.options.timeoutMs}ms)`));
-      }, this.options.timeoutMs);
-
-      child.on("error", (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code !== 0) {
-          reject(
-            new Error(
-              stderr.trim() || stdout.trim() || `Claude CLI が終了コード ${code} で終了しました`,
-            ),
-          );
-          return;
-        }
-        try {
-          resolve(extractClaudePrintResult(stdout));
-        } catch (e) {
-          reject(e instanceof Error ? e : new Error(String(e)));
-        }
-      });
+      mcpConfigPath: this.mcpConfigPath,
+      timeoutMs: this.options.timeoutMs,
+      skipPermissions: this.options.skipPermissions,
     });
   }
-}
-
-export function extractClaudePrintResult(stdout: string): string {
-  const trimmed = stdout.trim();
-  if (!trimmed) {
-    throw new Error("Claude CLI の出力が空です");
-  }
-
-  let parsed: ClaudePrintResponse;
-  try {
-    parsed = JSON.parse(trimmed) as ClaudePrintResponse;
-  } catch {
-    return trimmed;
-  }
-
-  if (parsed.is_error) {
-    throw new Error(parsed.result?.trim() || "Claude CLI がエラーを返しました");
-  }
-
-  if (typeof parsed.result === "string") {
-    return parsed.result;
-  }
-
-  return trimmed;
 }

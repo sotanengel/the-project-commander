@@ -1,7 +1,9 @@
 import type { CommentSuggestion } from "@tpc/shared";
 import type { Db } from "../db.js";
 import { type AnalyzeCommentInput, analyzeComment } from "./analyzeComment.js";
+import type { ClaudeAnalysisSession } from "./claudeCliSession.js";
 import { ClaudeCliSession } from "./claudeCliSession.js";
+import { ClaudeHostClientSession } from "./claudeHostClientSession.js";
 import { type CliAgentStatus, checkCliAgentStatus, readCliAgentEnv } from "./cliAgentStatus.js";
 
 export interface CliAgentService {
@@ -36,22 +38,34 @@ export class ClaudeCliAgentService implements CliAgentService {
     ready: false,
     mcpConnected: false,
   };
-  private session: ClaudeCliSession | null = null;
+  private session: ClaudeAnalysisSession | null = null;
 
-  constructor(
-    private readonly env = readCliAgentEnv(),
-    private readonly sessionFactory = (port: number, timeoutMs: number, claudeBin: string) =>
-      new ClaudeCliSession({ claudeBin, port, timeoutMs }),
-  ) {}
+  constructor(private readonly env = readCliAgentEnv()) {}
 
   async init(): Promise<void> {
     this.status = await checkCliAgentStatus({
       provider: this.env.provider,
       claudeBin: this.env.claudeBin,
+      claudeHostUrl: this.env.claudeHostUrl,
     });
     if (!this.status.ready) return;
 
-    this.session = this.sessionFactory(this.env.port, this.env.timeoutMs, this.env.claudeBin);
+    if (this.env.claudeHostUrl) {
+      this.session = new ClaudeHostClientSession({
+        hostAgentUrl: this.env.claudeHostUrl,
+        mcpPublicUrl: this.env.mcpPublicUrl,
+        timeoutMs: this.env.timeoutMs,
+        skipPermissions: this.env.skipPermissions,
+      });
+    } else {
+      this.session = new ClaudeCliSession({
+        claudeBin: this.env.claudeBin,
+        port: this.env.port,
+        timeoutMs: this.env.timeoutMs,
+        skipPermissions: this.env.skipPermissions,
+      });
+    }
+
     await this.session.start();
     this.status = {
       ...this.status,
@@ -77,7 +91,7 @@ export class ClaudeCliAgentService implements CliAgentService {
 }
 
 export function createCliAgentService(env = readCliAgentEnv()): CliAgentService {
-  if (env.provider !== "claude") {
+  if (env.provider === "off") {
     return new DisabledCliAgentService();
   }
   return new ClaudeCliAgentService(env);

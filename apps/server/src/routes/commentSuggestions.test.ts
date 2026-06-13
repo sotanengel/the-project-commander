@@ -1,7 +1,7 @@
 import type { CommentSuggestion } from "@tpc/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { extractClaudePrintResult } from "../agent/claudeCliSession.js";
+import { extractClaudePrintResult } from "../agent/claudeCommand.js";
 import type { CliAgentService } from "../agent/index.js";
 import { buildMcpConfigContent } from "../agent/mcpConfig.js";
 import { buildApp } from "../app.js";

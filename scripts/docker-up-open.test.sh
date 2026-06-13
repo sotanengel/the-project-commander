@@ -57,13 +57,13 @@ setup_mock_bin() {
   local mock_bin="$1"
   mkdir -p "${mock_bin}"
   cat > "${mock_bin}/open" <<'EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 echo "$1" >> "${MOCK_OPEN_LOG}"
 EOF
   chmod +x "${mock_bin}/open"
 
   cat > "${mock_bin}/curl" <<'EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 if [[ "${MOCK_CURL_MODE:-fail}" == "ok" ]]; then
   exit 0
 fi
@@ -72,10 +72,27 @@ EOF
   chmod +x "${mock_bin}/curl"
 
   cat > "${mock_bin}/sleep" <<'EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 exit 0
 EOF
   chmod +x "${mock_bin}/sleep"
+}
+
+mock_path() {
+  local mock_bin="$1"
+  printf '%s:/bin:/usr/bin' "${mock_bin}"
+}
+
+run_lib_isolated() {
+  local mock_bin="$1"
+  local script="$2"
+  env -i \
+    HOME="${HOME}" \
+    TERM="${TERM:-xterm}" \
+    MOCK_CURL_MODE="${MOCK_CURL_MODE:-}" \
+    MOCK_OPEN_LOG="${MOCK_OPEN_LOG:-}" \
+    PATH="$(mock_path "${mock_bin}")" \
+    /bin/bash -c "${script}"
 }
 
 run_test() {
@@ -281,11 +298,48 @@ EOF
       set -euo pipefail
       source '${LIB}'
       prepare_docker_runtime
-      printf '%s|%s' \"\${TPC_HOST_PORT}\" \"\${APP_URL}\"
+      printf '%s|%s|%s' \"\${TPC_HOST_PORT}\" \"\${APP_URL}\" \"\${TPC_MCP_PUBLIC_URL}\"
     " 2>"${stderr_log}"
   )"
-  assert_eq "3000|http://localhost:3000" "${result}" "prepare_docker_runtime exports default port and URL"
+  assert_eq "3000|http://localhost:3000|http://127.0.0.1:3000/mcp" "${result}" "prepare_docker_runtime exports port, URL, and MCP public URL"
   assert_file_contains "${stderr_log}" "URL: http://localhost:3000" "prepare_docker_runtime prints startup banner"
+  rm -rf "${tmpdir}"
+}
+
+test_start_claude_host_agent_skips_without_claude() {
+  local tmpdir mock_bin stderr_log
+  tmpdir="$(mktemp -d)"
+  mock_bin="${tmpdir}/bin"
+  stderr_log="${tmpdir}/stderr.log"
+  mkdir -p "${mock_bin}"
+  run_lib_isolated "${mock_bin}" "
+    set -euo pipefail
+    source '${LIB}'
+    HOST_PORT=3000
+    start_claude_host_agent
+  " 2>"${stderr_log}"
+  assert_file_contains "${stderr_log}" "claude CLI が見つかりません" "start_claude_host_agent warns when claude is missing"
+  rm -rf "${tmpdir}"
+}
+
+test_start_claude_host_agent_reuses_running_agent() {
+  local tmpdir mock_bin stderr_log
+  tmpdir="$(mktemp -d)"
+  mock_bin="${tmpdir}/bin"
+  stderr_log="${tmpdir}/stderr.log"
+  setup_mock_bin "${mock_bin}"
+  cat > "${mock_bin}/claude" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  chmod +x "${mock_bin}/claude"
+  MOCK_CURL_MODE="ok" run_lib_isolated "${mock_bin}" "
+    set -euo pipefail
+    source '${LIB}'
+    HOST_PORT=3000
+    start_claude_host_agent
+  " 2>"${stderr_log}"
+  assert_file_contains "${stderr_log}" "already running" "start_claude_host_agent skips spawn when health check succeeds"
   rm -rf "${tmpdir}"
 }
 
@@ -301,6 +355,11 @@ exit 0
 EOF
   chmod +x "${mock_bin}/docker"
   setup_mock_bin "${mock_bin}"
+  cat > "${mock_bin}/claude" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  chmod +x "${mock_bin}/claude"
   MOCK_CURL_MODE="ok" MOCK_OPEN_LOG="${tmpdir}/open.log" TPC_HEALTH_TIMEOUT=1 PATH="${mock_bin}:${PATH}" bash -c "
     set -euo pipefail
     cd '${tmpdir}'
@@ -327,6 +386,8 @@ main() {
   run_test "configure_runtime" test_configure_runtime
   run_test "find_available_port fallback" test_find_available_port_falls_back
   run_test "prepare_docker_runtime" test_prepare_docker_runtime_exports_port
+  run_test "start_claude_host_agent without claude" test_start_claude_host_agent_skips_without_claude
+  run_test "start_claude_host_agent reuses agent" test_start_claude_host_agent_reuses_running_agent
   run_test "main invokes docker compose" test_main_invokes_docker_compose
 
   echo
