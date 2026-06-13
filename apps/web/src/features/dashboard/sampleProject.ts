@@ -249,5 +249,6 @@ export function buildSampleProjectBundle(today: string): ExportBundle {
       },
     ],
     baselines: [],
+    taskComments: [],
   };
 }

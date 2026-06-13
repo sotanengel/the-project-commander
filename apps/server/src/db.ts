@@ -30,6 +30,12 @@ export function createDb(path: string): Db {
       assignee TEXT NOT NULL DEFAULT '',
       sortOrder INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS task_comments (
+      id TEXT PRIMARY KEY,
+      taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS dependencies (
       id TEXT PRIMARY KEY,
       projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

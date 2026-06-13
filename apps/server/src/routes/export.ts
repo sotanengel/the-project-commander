@@ -15,6 +15,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { type Db, newId } from "../db.js";
 import { listBaselineRows, rowToBaseline } from "../repositories/baseline.js";
+import { listCommentsByProject } from "../repositories/taskComment.js";
 
 /**
  * インポート時のプロジェクト名を決定する。
@@ -61,6 +62,7 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
         .prepare("SELECT * FROM stakeholders WHERE projectId = ?")
         .all(projectId) as Stakeholder[],
       baselines: baselineRows.map(rowToBaseline),
+      taskComments: listCommentsByProject(db, projectId),
     };
     return bundle;
   });
@@ -191,6 +193,14 @@ export default async function exportRoutes(app: FastifyInstance, { db }: { db: D
           b.createdAt,
           JSON.stringify({ projectDuration: b.projectDuration, tasks }),
         );
+      }
+      const insertComment = db.prepare(
+        "INSERT INTO task_comments (id, taskId, body, createdAt) VALUES (?, ?, ?, ?)",
+      );
+      for (const comment of bundle.taskComments) {
+        const mappedTaskId = idMap.get(comment.taskId);
+        if (!mappedTaskId) continue;
+        insertComment.run(newId(), mappedTaskId, comment.body, comment.createdAt);
       }
     });
     importTx();

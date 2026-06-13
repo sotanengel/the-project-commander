@@ -1,8 +1,9 @@
-import type { TaskUpdateInput } from "@tpc/shared";
-import { useEffect, useState } from "react";
+import type { TaskComment, TaskUpdateInput } from "@tpc/shared";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { validateTaskEdit } from "../wbs/wbsViewModel.js";
+import { formatCommentTimestamp, validateCommentBody } from "./taskCommentModel.js";
 import {
   type TaskDetailView,
   buildCreateModeBreadcrumb,
@@ -44,6 +45,25 @@ export default function TaskDetailPage() {
   const [assignee, setAssignee] = useState("");
   const [duration, setDuration] = useState("");
   const [progress, setProgress] = useState("");
+
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentBody, setCommentBody] = useState("");
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [addingComment, setAddingComment] = useState(false);
+
+  const loadComments = useCallback(() => {
+    if (!taskId || isCreateMode) return;
+    setCommentsLoading(true);
+    api
+      .listTaskComments(taskId)
+      .then((items) => {
+        setComments(items);
+        setCommentError(null);
+      })
+      .catch((e: Error) => setCommentError(`コメントの読み込みに失敗しました: ${e.message}`))
+      .finally(() => setCommentsLoading(false));
+  }, [taskId, isCreateMode]);
 
   const reload = () => {
     if (!projectId || !taskId || isCreateMode) return;
@@ -128,6 +148,30 @@ export default function TaskDetailPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [projectId, taskId, isCreateMode, parentIdParam]);
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
+
+  const handleAddComment = async () => {
+    if (!taskId || isCreateMode) return;
+    setCommentError(null);
+    const result = validateCommentBody(commentBody);
+    if (!result.ok) {
+      setCommentError(result.error);
+      return;
+    }
+    setAddingComment(true);
+    try {
+      await api.createTaskComment(taskId, { body: result.value });
+      setCommentBody("");
+      loadComments();
+    } catch (e) {
+      setCommentError(`コメントの追加に失敗しました: ${toMessage(e)}`);
+    } finally {
+      setAddingComment(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!projectId) return;
@@ -348,6 +392,47 @@ export default function TaskDetailPage() {
             </>
           )}
         </dl>
+
+        {!isCreateMode && view && (
+          <section className="task-detail-comments" aria-labelledby="task-comments-heading">
+            <h3 id="task-comments-heading">進捗コメント</h3>
+            {commentsLoading ? (
+              <p className="muted task-detail-comments-empty">読み込み中…</p>
+            ) : comments.length === 0 ? (
+              <p className="muted task-detail-comments-empty">まだコメントはありません</p>
+            ) : (
+              <ol className="task-detail-comment-list">
+                {comments.map((comment) => (
+                  <li key={comment.id} className="task-detail-comment-item">
+                    <time className="task-detail-comment-time" dateTime={comment.createdAt}>
+                      {formatCommentTimestamp(comment.createdAt)}
+                    </time>
+                    <p className="task-detail-comment-body">{comment.body}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <div className="task-detail-field task-detail-comment-form">
+              <label htmlFor="task-comment-body">新しいコメント</label>
+              <textarea
+                id="task-comment-body"
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                placeholder="進捗状況やメモを記録してください"
+                rows={3}
+              />
+              <button
+                type="button"
+                className="secondary"
+                disabled={addingComment || commentsLoading}
+                onClick={() => void handleAddComment()}
+              >
+                {addingComment ? "追加中…" : "コメントを追加"}
+              </button>
+            </div>
+            {commentError && <p className="error">{commentError}</p>}
+          </section>
+        )}
 
         {!isCreateMode && view && (
           <>

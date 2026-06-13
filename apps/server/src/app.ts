@@ -14,6 +14,7 @@ import planDraftRoutes from "./routes/plan-draft.js";
 import projectRoutes from "./routes/projects.js";
 import riskRoutes from "./routes/risks.js";
 import stakeholderRoutes from "./routes/stakeholders.js";
+import taskCommentRoutes from "./routes/taskComments.js";
 import taskRoutes from "./routes/tasks.js";
 
 export async function buildApp(db: Db): Promise<FastifyInstance> {
@@ -43,6 +44,7 @@ export async function buildApp(db: Db): Promise<FastifyInstance> {
   await app.register(projectRoutes, { db });
   await app.register(planDraftRoutes, { db });
   await app.register(taskRoutes, { db });
+  await app.register(taskCommentRoutes, { db });
   await app.register(dependencyRoutes, { db });
   await app.register(milestoneRoutes, { db });
   await app.register(riskRoutes, { db });

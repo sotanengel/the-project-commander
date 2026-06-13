@@ -171,3 +171,57 @@
 .task-detail-children a:hover {
   text-decoration: underline;
 }
+
+.task-detail-comments {
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.task-detail-comments h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.task-detail-comments-empty {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.task-detail-comment-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.task-detail-comment-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.task-detail-comment-item:last-child {
+  border-bottom: none;
+}
+
+.task-detail-comment-time {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.task-detail-comment-body {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.task-detail-comment-form textarea {
+  min-height: 72px;
+}
+
+.task-detail-comment-form button {
+  align-self: flex-start;
+  margin-top: 4px;
+}

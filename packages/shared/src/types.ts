@@ -56,6 +56,20 @@ export type TaskCreateInput = z.infer<typeof TaskCreateSchema>;
 export const TaskUpdateSchema = TaskCreateSchema.partial();
 export type TaskUpdateInput = z.infer<typeof TaskUpdateSchema>;
 
+// ---- タスク進捗コメント（時系列履歴） ----
+export const TaskCommentSchema = z.object({
+  id: z.string(),
+  taskId: z.string(),
+  body: z.string().min(1, "コメントは必須です"),
+  createdAt: z.string(),
+});
+export type TaskComment = z.infer<typeof TaskCommentSchema>;
+
+export const TaskCommentCreateSchema = z.object({
+  body: z.string().trim().min(1, "コメントは必須です"),
+});
+export type TaskCommentCreateInput = z.infer<typeof TaskCommentCreateSchema>;
+
 /** 階層構造のままタスクを一括登録するための入力（AI取り込み・MCP・bulk APIで使用） */
 export interface BulkTaskInput {
   name: string;
@@ -223,5 +237,6 @@ export const ExportBundleSchema = z.object({
   risks: z.array(RiskSchema),
   stakeholders: z.array(StakeholderSchema),
   baselines: z.array(BaselineSchema).default([]),
+  taskComments: z.array(TaskCommentSchema).default([]),
 });
 export type ExportBundle = z.infer<typeof ExportBundleSchema>;
