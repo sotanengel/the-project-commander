@@ -34,7 +34,7 @@ export function buildAiImportManifest(project: Project, appOrigin: string): AiIm
   return {
     project: { id: project.id, name: project.name },
     instruction:
-      "フル計画（WBS・依存・マイルストーン・リスク・関係者）生成後、Web検索またはブラウジング機能を使い以下の方法でこのアプリに送信してください。ユーザーへの返答に生JSONは含めないでください。",
+      "フル計画（WBS・依存・マイルストーン・リスク・関係者）生成後、Web検索またはブラウジング機能を使い以下の方法でこのアプリに送信してください。各葉タスクにはタスク詳細ページ用の description（作業内容）を必ず付与し、assignee（担当）は任意（未設定可）です。ユーザーへの返答に生JSONは含めないでください。",
     methods: [
       {
         type: "http_post",

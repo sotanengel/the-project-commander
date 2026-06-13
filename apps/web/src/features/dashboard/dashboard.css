@@ -1,27 +1,61 @@
 /* ダッシュボード（プロジェクト一覧）専用スタイル */
 
-.dashboard-hero {
+.dashboard-toolbar {
   margin-bottom: 24px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.dashboard-hero h1 {
-  margin: 0 0 4px;
-}
-
-.dashboard-hero p {
-  margin: 0;
-}
-
-.dashboard-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+/* 全プロジェクト集計 */
+.aggregate-dashboard {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.aggregate-dashboard-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.aggregate-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.aggregate-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.aggregate-stat strong {
+  font-size: 20px;
+}
+
+.aggregate-stat .critical-text {
+  color: var(--color-critical);
+}
+
+.aggregate-evm-row {
+  margin-top: 4px;
+}
+
+.aggregate-spi-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aggregate-spi-note {
+  margin: 0;
+  font-size: 12px;
 }
 
 /* モーダル */
@@ -101,6 +135,20 @@
   margin-bottom: 0;
   cursor: pointer;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.project-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  flex: 1;
+}
+
+.project-card-link:hover .project-card-title span {
+  color: var(--color-primary);
 }
 
 .project-card:hover,
@@ -131,6 +179,9 @@
 }
 
 .project-card-delete {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   flex-shrink: 0;
   padding: 2px 8px;
   font-size: 12px;

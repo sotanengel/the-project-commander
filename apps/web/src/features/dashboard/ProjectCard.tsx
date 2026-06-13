@@ -1,77 +1,50 @@
-import { computeEvm } from "@tpc/shared";
 import type { EvmResult, Project } from "@tpc/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api/client.js";
+import type { ProjectMetrics } from "./aggregateSummary.js";
 import {
   type ProjectSummary,
   SPI_HELP_TEXT,
   classifySpi,
   formatPercent,
   spiTooltip,
-  summarizePlan,
 } from "./summary.js";
-
-type SummaryState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "ready"; summary: ProjectSummary; evm: EvmResult };
 
 interface Props {
   project: Project;
+  metrics?: ProjectMetrics;
   onDelete: (project: Project) => void;
 }
 
 /** プロジェクト1件のサマリカード。クリックでプロジェクト画面へ遷移する。 */
-export default function ProjectCard({ project, onDelete }: Props) {
-  const [state, setState] = useState<SummaryState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getPlan(project.id)
-      .then((plan) => {
-        if (cancelled) return;
-        setState({
-          status: "ready",
-          summary: summarizePlan(plan.tasks, plan.cpm),
-          evm: computeEvm(plan, new Date()),
-        });
-      })
-      .catch((e: Error) => {
-        if (cancelled) return;
-        setState({ status: "error", message: e.message });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [project.id]);
-
+export default function ProjectCard({ project, metrics, onDelete }: Props) {
   return (
     <article className="card project-card">
-      <div className="project-card-head">
-        <div>
-          <h2 className="project-card-title">
-            <Link to={`/projects/${project.id}`}>{project.name}</Link>
-          </h2>
-          <span className="project-card-date">開始日 {project.startDate}</span>
+      <Link
+        to={`/projects/${project.id}`}
+        className="project-card-link"
+        aria-label={`プロジェクト「${project.name}」を開く`}
+      >
+        <div className="project-card-head">
+          <div>
+            <h2 className="project-card-title">
+              <span>{project.name}</span>
+            </h2>
+            <span className="project-card-date">開始日 {project.startDate}</span>
+          </div>
         </div>
-        <button
-          type="button"
-          className="project-card-delete"
-          aria-label={`プロジェクト「${project.name}」を削除`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(project);
-          }}
-        >
-          削除
-        </button>
-      </div>
 
-      {state.status === "loading" && <p className="muted project-card-note">読み込み中…</p>}
-      {state.status === "error" && <p className="error project-card-note">{state.message}</p>}
-      {state.status === "ready" && <SummaryBody summary={state.summary} evm={state.evm} />}
+        {!metrics && <p className="muted project-card-note">読み込み中…</p>}
+        {metrics && <SummaryBody summary={metrics.summary} evm={metrics.evm} />}
+      </Link>
+      <button
+        type="button"
+        className="project-card-delete"
+        aria-label={`プロジェクト「${project.name}」を削除`}
+        onClick={() => onDelete(project)}
+      >
+        削除
+      </button>
     </article>
   );
 }
@@ -140,7 +113,11 @@ function EvmRow({ evm }: { evm: EvmResult }) {
             title={tooltip}
             aria-label="SPIバッジの意味を表示"
             aria-expanded={showHelp}
-            onClick={() => setShowHelp((v) => !v)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowHelp((v) => !v);
+            }}
           >
             ？
           </button>

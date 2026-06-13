@@ -9,6 +9,7 @@ import GuidePage from "./features/guide/GuidePage.js";
 import NetworkPage from "./features/network/NetworkPage.js";
 import ProjectSetupPage from "./features/project-setup/ProjectSetupPage.js";
 import RegistersPage from "./features/registers/RegistersPage.js";
+import TaskDetailPage from "./features/task-detail/TaskDetailPage.js";
 import WbsPage from "./features/wbs/WbsPage.js";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="gantt" element={<GanttPage />} />
         <Route path="registers" element={<RegistersPage />} />
         <Route path="ai" element={<AiAssistPage />} />
+        <Route path="tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="setup" element={<ProjectSetupPage />} />
       </Route>
     </Routes>
@@ -36,9 +38,12 @@ function DashboardLayout() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <Link to="/" className="app-brand">
-          ⌘ The Project Commander
-        </Link>
+        <div className="app-header-brand">
+          <Link to="/" className="app-brand">
+            ⌘ The Project Commander
+          </Link>
+          <p className="app-tagline muted">プロジェクトの計画づくりと進行管理をシンプルに。</p>
+        </div>
         <nav className="tabs">
           <NavLink to="/guide">ガイド</NavLink>
         </nav>

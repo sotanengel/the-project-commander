@@ -39,4 +39,12 @@ describe("buildNewProjectPrompt", () => {
     const prompt = buildNewProjectPrompt(weddingProject, "http://localhost:3001");
     expect(prompt).toContain("ユーザーへの返答に生JSONは含めない");
   });
+
+  it("タスク詳細（description/assignee）の生成指示を含む", () => {
+    const prompt = buildNewProjectPrompt(weddingProject, "http://localhost:3001");
+    expect(prompt).toContain("【タスク詳細（WBS 葉タスク）】");
+    expect(prompt).toContain("description（作業内容）");
+    expect(prompt).toContain("assignee（担当）は任意");
+    expect(prompt).toContain("タスク詳細ページ");
+  });
 });

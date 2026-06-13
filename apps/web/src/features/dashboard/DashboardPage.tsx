@@ -1,12 +1,19 @@
+import { computeEvm } from "@tpc/shared";
 import type { Project } from "@tpc/shared";
 import { todayLocal } from "@tpc/shared";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client.js";
+import AggregateDashboard from "./AggregateDashboard.js";
 import ProjectCard from "./ProjectCard.js";
 import ProjectCreateModal, { type ProjectCreateInput } from "./ProjectCreateModal.js";
+import { aggregateProjectMetrics } from "./aggregateSummary.js";
+import type { ProjectMetrics } from "./aggregateSummary.js";
 import { buildSampleProjectBundle } from "./sampleProject.js";
+import { summarizePlan } from "./summary.js";
 import "./dashboard.css";
+
+type MetricsMap = Map<string, ProjectMetrics>;
 
 /**
  * プロジェクト一覧 / ダッシュボード。
@@ -14,18 +21,49 @@ import "./dashboard.css";
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [metrics, setMetrics] = useState<MetricsMap>(new Map());
   const [loaded, setLoaded] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
+  const loadMetrics = async (list: Project[]) => {
+    const today = new Date(todayLocal());
+    const entries = await Promise.all(
+      list.map(async (p) => {
+        try {
+          const plan = await api.getPlan(p.id);
+          return [
+            p.id,
+            {
+              summary: summarizePlan(plan.tasks, plan.cpm),
+              evm: computeEvm(plan, today),
+            },
+          ] as const;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const map: MetricsMap = new Map();
+    for (const entry of entries) {
+      if (entry) map.set(entry[0], entry[1]);
+    }
+    setMetrics(map);
+  };
+
   const reload = () => {
     api
       .listProjects()
-      .then((list) => {
+      .then(async (list) => {
         setProjects(list);
         setLoaded(true);
+        if (list.length > 0) {
+          await loadMetrics(list);
+        } else {
+          setMetrics(new Map());
+        }
       })
       .catch((e: Error) => setError(e.message));
   };
@@ -75,28 +113,23 @@ export default function DashboardPage() {
     setCreateOpen(true);
   };
 
+  const metricsList = projects
+    .map((p) => metrics.get(p.id))
+    .filter((m): m is ProjectMetrics => m !== undefined);
+  const aggregate = aggregateProjectMetrics(metricsList);
+
   return (
     <main className="container dashboard">
-      <div className="dashboard-hero">
-        <div>
-          <h1>⌘ The Project Commander</h1>
-          <p className="muted">プロジェクトの計画づくりと進行管理をシンプルに。</p>
-        </div>
-        <div className="dashboard-actions">
-          <button type="button" onClick={openCreateModal}>
-            + 新規プロジェクト
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={handleLoadSample}
-            disabled={importing}
-          >
-            {importing ? "読み込み中…" : "サンプルプロジェクトを読み込む"}
-          </button>
-        </div>
+      <div className="dashboard-toolbar">
+        <button type="button" onClick={openCreateModal}>
+          + 新規プロジェクト
+        </button>
+        <button type="button" className="secondary" onClick={handleLoadSample} disabled={importing}>
+          {importing ? "読み込み中…" : "サンプルプロジェクトを読み込む"}
+        </button>
       </div>
       {error && !createOpen && <p className="error">{error}</p>}
+      {loaded && projects.length > 0 && <AggregateDashboard aggregate={aggregate} />}
       <div className="project-grid">
         {loaded && projects.length === 0 ? (
           <section className="card dashboard-empty">
@@ -127,7 +160,14 @@ export default function DashboardPage() {
             </div>
           </section>
         ) : (
-          projects.map((p) => <ProjectCard key={p.id} project={p} onDelete={handleDelete} />)
+          projects.map((p) => (
+            <ProjectCard
+              key={p.id}
+              project={p}
+              metrics={metrics.get(p.id)}
+              onDelete={handleDelete}
+            />
+          ))
         )}
       </div>
       <ProjectCreateModal

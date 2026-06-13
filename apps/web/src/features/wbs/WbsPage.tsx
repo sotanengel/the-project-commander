@@ -1,7 +1,7 @@
 import { type WbsNode, buildWbsTree, countDescendants, insertSiblingPlan } from "@tpc/shared";
 import type { Task } from "@tpc/shared";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import "./wbs.css";
 import {
@@ -33,11 +33,13 @@ function WbsRow({
   depth,
   onReload,
   tasks,
+  projectId,
 }: {
   node: WbsNode;
   depth: number;
   onReload: () => void;
   tasks: Task[];
+  projectId: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(node.task.name);
@@ -241,6 +243,13 @@ function WbsRow({
             </>
           ) : (
             <>
+              <Link
+                to={`/projects/${projectId}/tasks/${node.task.id}`}
+                className="wbs-detail-link"
+                title="タスク詳細"
+              >
+                詳細
+              </Link>
               <button
                 type="button"
                 title="上へ (Alt+↑)"
@@ -290,7 +299,14 @@ function WbsRow({
         </tr>
       )}
       {node.children.map((c) => (
-        <WbsRow key={c.task.id} node={c} depth={depth + 1} onReload={onReload} tasks={tasks} />
+        <WbsRow
+          key={c.task.id}
+          node={c}
+          depth={depth + 1}
+          onReload={onReload}
+          tasks={tasks}
+          projectId={projectId}
+        />
       ))}
     </>
   );
@@ -381,7 +397,14 @@ export default function WbsPage() {
           </thead>
           <tbody>
             {tree.map((n) => (
-              <WbsRow key={n.task.id} node={n} depth={0} onReload={reload} tasks={tasks} />
+              <WbsRow
+                key={n.task.id}
+                node={n}
+                depth={0}
+                onReload={reload}
+                tasks={tasks}
+                projectId={projectId ?? ""}
+              />
             ))}
           </tbody>
         </table>

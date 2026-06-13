@@ -14,6 +14,8 @@ describe("ai-prompts guidelines", () => {
   it("WBSガイドラインに親durationDays=0と葉description必須を含む", () => {
     expect(WBS_GUIDELINES).toContain("durationDays は必ず 0");
     expect(WBS_GUIDELINES).toContain("description は必須");
+    expect(WBS_GUIDELINES).toContain("タスク詳細ページ");
+    expect(WBS_GUIDELINES).toContain("未設定でもよい");
     expect(WBS_GUIDELINES).toContain("一意");
   });
 
@@ -34,6 +36,7 @@ describe("ai-prompts guidelines", () => {
     expect(FULL_PROJECT_PLAN_SCHEMA).toContain('"milestones"');
     expect(FULL_PROJECT_PLAN_SCHEMA).toContain('"risks"');
     expect(FULL_PROJECT_PLAN_SCHEMA).toContain('"stakeholders"');
+    expect(FULL_PROJECT_PLAN_SCHEMA).toContain("未設定でもよい");
   });
 
   it("WBSドラフトスキーマは親durationDays=0の例を含む", () => {
