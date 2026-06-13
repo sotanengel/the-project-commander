@@ -202,8 +202,9 @@ export const CHECKLIST_STEPS: ChecklistStep[] = [
   {
     step: 1,
     title: "プロジェクトを作成する",
-    description: "プロジェクト名と開始日を決めて登録します。説明は後からでも追加できます。",
-    location: "ダッシュボード（トップページ）の作成フォーム",
+    description:
+      "「新規プロジェクト」から名前・概要・開始日を入力して登録します。作成後、AIでタスクを生成するプロンプトが表示されます。",
+    location: "ダッシュボード（トップページ）→ セットアップ画面",
   },
   {
     step: 2,

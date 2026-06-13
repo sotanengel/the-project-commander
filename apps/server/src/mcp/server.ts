@@ -67,7 +67,7 @@ export function createMcpServer(db: Db): McpServer {
       inputSchema: {
         name: z.string().min(1),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        description: z.string().optional(),
+        description: z.string().min(1),
       },
     },
     async (args) => {

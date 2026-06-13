@@ -17,44 +17,74 @@
   margin: 0;
 }
 
-/* 作成フォーム */
-.project-create-form .row {
-  align-items: flex-end;
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
-.project-create-form label {
+/* モーダル */
+.modal-dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  width: clamp(280px, 90vw, 640px);
+  max-width: 90vw;
+  max-height: 90vh;
+  margin: auto;
+  overflow: visible;
+}
+
+.modal-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal-card {
+  width: 100%;
+  max-height: min(85vh, 720px);
+  overflow-y: auto;
+  margin: 0;
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.modal-title {
+  margin: 0 0 clamp(12px, 2vh, 16px);
+  font-size: clamp(16px, 2.5vw, 18px);
+}
+
+.modal-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-bottom: 12px;
   font-size: 13px;
   color: var(--color-text-muted);
 }
 
-.project-create-form .grow {
-  flex: 1;
-  min-width: 200px;
+.modal-field input,
+.modal-field textarea {
+  font-size: clamp(13px, 1.8vw, 14px);
+  color: var(--color-text);
 }
+
+.modal-field textarea {
+  min-height: clamp(80px, 18vh, 200px);
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* セットアップ画面のスタイルは project-setup/setup.css を参照 */
 
 .form-field-error {
-  margin: 8px 0 0;
+  margin: 0 0 8px;
   font-size: 13px;
-}
-
-.project-create-details {
-  margin-top: 8px;
-}
-
-.project-create-details summary {
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  user-select: none;
-}
-
-.project-create-details textarea {
-  width: 100%;
-  margin-top: 8px;
-  resize: vertical;
 }
 
 /* カードグリッド */

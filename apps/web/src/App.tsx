@@ -7,6 +7,7 @@ import DashboardPage from "./features/dashboard/DashboardPage.js";
 import GanttPage from "./features/gantt/GanttPage.js";
 import GuidePage from "./features/guide/GuidePage.js";
 import NetworkPage from "./features/network/NetworkPage.js";
+import ProjectSetupPage from "./features/project-setup/ProjectSetupPage.js";
 import RegistersPage from "./features/registers/RegistersPage.js";
 import WbsPage from "./features/wbs/WbsPage.js";
 
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="gantt" element={<GanttPage />} />
         <Route path="registers" element={<RegistersPage />} />
         <Route path="ai" element={<AiAssistPage />} />
+        <Route path="setup" element={<ProjectSetupPage />} />
       </Route>
     </Routes>
   );

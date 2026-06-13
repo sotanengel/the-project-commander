@@ -7,7 +7,7 @@ async function createProject(app: FastifyInstance, name = "テストPJ") {
   const res = await app.inject({
     method: "POST",
     url: "/api/projects",
-    payload: { name, startDate: "2026-06-10" },
+    payload: { name, description: "テスト概要", startDate: "2026-06-10" },
   });
   return res.json();
 }
@@ -64,6 +64,16 @@ describe("projects API", () => {
       }
     });
 
+    it("POSTで概要が空の場合は400", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/projects",
+        payload: { name: "テスト", description: "", startDate: "2026-06-10" },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(typeof res.json().error).toBe("string");
+    });
+
     it("DELETEでプロジェクトが消え、配下のタスク・依存関係もカスケード削除される", async () => {
       const project = await createProject(app);
       const [a, b] = (
@@ -92,6 +102,24 @@ describe("projects API", () => {
         payload: { name: "x" },
       });
       expect(taskRes.statusCode).toBe(404);
+    });
+  });
+
+  describe("ai-import-manifest", () => {
+    it("取り込み仕様JSONを返す", async () => {
+      const project = await createProject(app);
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/projects/${project.id}/ai-import-manifest`,
+        headers: { origin: "http://localhost:3001" },
+      });
+      expect(res.statusCode).toBe(200);
+      const manifest = res.json();
+      expect(manifest.project.id).toBe(project.id);
+      expect(manifest.methods[0].url).toBe(
+        `http://localhost:3001/api/projects/${project.id}/plan-draft-import`,
+      );
+      expect(manifest.methods[0].type).toBe("http_post");
     });
   });
 

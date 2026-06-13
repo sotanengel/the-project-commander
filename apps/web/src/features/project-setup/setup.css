@@ -1,0 +1,45 @@
+/* 新規プロジェクトセットアップ画面 */
+
+.setup-steps {
+  margin: 12px 0 16px;
+  padding-left: 1.25rem;
+  font-size: 14px;
+}
+
+.setup-steps li {
+  margin-bottom: 6px;
+}
+
+.setup-links {
+  gap: 16px;
+  align-items: center;
+}
+
+.setup-preview {
+  margin-bottom: 0;
+}
+
+.setup-links a {
+  font-size: 14px;
+}
+
+.setup-waiting {
+  margin-bottom: 12px;
+}
+
+.setup-manifest {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.setup-manifest summary {
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.setup-manifest-list {
+  margin: 8px 0 0;
+  padding-left: 1.25rem;
+  font-size: 13px;
+  word-break: break-all;
+}

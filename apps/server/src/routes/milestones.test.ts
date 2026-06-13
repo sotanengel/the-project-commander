@@ -21,7 +21,7 @@ describe("マイルストーンAPI", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "テストプロジェクト", startDate: "2026-06-10" },
+      payload: { name: "テストプロジェクト", description: "テスト概要", startDate: "2026-06-10" },
     });
     expect(res.statusCode).toBe(201);
     return res.json();

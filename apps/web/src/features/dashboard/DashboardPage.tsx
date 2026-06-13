@@ -1,9 +1,10 @@
 import type { Project } from "@tpc/shared";
 import { todayLocal } from "@tpc/shared";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client.js";
 import ProjectCard from "./ProjectCard.js";
-import { validateProjectName } from "./projectForm.js";
+import ProjectCreateModal, { type ProjectCreateInput } from "./ProjectCreateModal.js";
 import { buildSampleProjectBundle } from "./sampleProject.js";
 import "./dashboard.css";
 
@@ -11,16 +12,13 @@ import "./dashboard.css";
  * プロジェクト一覧 / ダッシュボード。
  */
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [name, setName] = useState("");
-  const [nameTouched, setNameTouched] = useState(false);
-  const [startDate, setStartDate] = useState(todayLocal());
-  const [description, setDescription] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-
-  const nameError = validateProjectName(name);
 
   const reload = () => {
     api
@@ -34,25 +32,17 @@ export default function DashboardPage() {
 
   useEffect(reload, []);
 
-  const handleCreate = async (e: FormEvent) => {
-    e.preventDefault();
-    if (nameError) {
-      setNameTouched(true);
-      return;
-    }
+  const handleCreate = async (input: ProjectCreateInput) => {
     setError(null);
+    setCreating(true);
     try {
-      await api.createProject({
-        name,
-        startDate,
-        description: description || undefined,
-      });
-      setName("");
-      setNameTouched(false);
-      setDescription("");
-      reload();
+      const project = await api.createProject(input);
+      setCreateOpen(false);
+      navigate(`/projects/${project.id}/setup`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -80,6 +70,11 @@ export default function DashboardPage() {
     }
   };
 
+  const openCreateModal = () => {
+    setError(null);
+    setCreateOpen(true);
+  };
+
   return (
     <main className="container dashboard">
       <div className="dashboard-hero">
@@ -87,48 +82,21 @@ export default function DashboardPage() {
           <h1>⌘ The Project Commander</h1>
           <p className="muted">プロジェクトの計画づくりと進行管理をシンプルに。</p>
         </div>
-        <button type="button" className="secondary" onClick={handleLoadSample} disabled={importing}>
-          {importing ? "読み込み中…" : "サンプルプロジェクトを読み込む"}
-        </button>
-      </div>
-      {error && <p className="error">{error}</p>}
-      <form className="card project-create-form" onSubmit={handleCreate} noValidate>
-        <div className="row">
-          <label className="grow">
-            プロジェクト名
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => setNameTouched(true)}
-              placeholder="新しいプロジェクト名"
-              aria-invalid={nameTouched && nameError !== null}
-              required
-            />
-          </label>
-          <label>
-            開始日
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </label>
-          <button type="submit" disabled={nameError !== null}>
-            作成
+        <div className="dashboard-actions">
+          <button type="button" onClick={openCreateModal}>
+            + 新規プロジェクト
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleLoadSample}
+            disabled={importing}
+          >
+            {importing ? "読み込み中…" : "サンプルプロジェクトを読み込む"}
           </button>
         </div>
-        {nameTouched && nameError && <p className="error form-field-error">{nameError}</p>}
-        <details className="project-create-details">
-          <summary>説明を追加（任意）</summary>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="プロジェクトの概要"
-            rows={2}
-          />
-        </details>
-      </form>
+      </div>
+      {error && !createOpen && <p className="error">{error}</p>}
       <div className="project-grid">
         {loaded && projects.length === 0 ? (
           <section className="card dashboard-empty">
@@ -150,8 +118,11 @@ export default function DashboardPage() {
               <div className="dashboard-empty-choice">
                 <h3>② 自分で作る</h3>
                 <p className="muted">
-                  上のフォームにプロジェクト名と開始日を入れて「作成」。あとはWBSタブでタスクを追加していくだけ。
+                  「新規プロジェクト」から名前と概要を入力して作成。AIでタスクを生成するプロンプトが表示されます。
                 </p>
+                <button type="button" onClick={openCreateModal}>
+                  + 新規プロジェクト
+                </button>
               </div>
             </div>
           </section>
@@ -159,6 +130,13 @@ export default function DashboardPage() {
           projects.map((p) => <ProjectCard key={p.id} project={p} onDelete={handleDelete} />)
         )}
       </div>
+      <ProjectCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSubmit={handleCreate}
+        submitting={creating}
+        error={createOpen ? error : null}
+      />
     </main>
   );
 }

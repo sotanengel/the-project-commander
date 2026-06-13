@@ -123,12 +123,34 @@ describe("parseAiResponse", () => {
 
   it("risk_identify: リスク配列をパースする", () => {
     const result = parseAiResponse(
-      '{ "risks": [{ "title": "遅延", "probability": "high", "impact": "medium" }] }',
+      '{ "risks": [{ "title": "遅延", "probability": "high", "impact": "medium", "response": "バッファを確保" }] }',
       "risk_identify",
     );
     expect(result).toEqual({
       kind: "risks",
-      risks: [{ title: "遅延", probability: "high", impact: "medium" }],
+      risks: [{ title: "遅延", probability: "high", impact: "medium", response: "バッファを確保" }],
+    });
+  });
+
+  it("milestones: マイルストーン配列をパースする", () => {
+    const result = parseAiResponse(
+      '{ "milestones": [{ "name": "要件確定", "dueDate": "2027-06-01", "status": "pending" }] }',
+      "milestones",
+    );
+    expect(result).toEqual({
+      kind: "milestones",
+      milestones: [{ name: "要件確定", dueDate: "2027-06-01", status: "pending" }],
+    });
+  });
+
+  it("stakeholders: 関係者配列をパースする", () => {
+    const result = parseAiResponse(
+      '{ "stakeholders": [{ "name": "山田", "role": "スポンサー", "influence": "high", "interest": "high" }] }',
+      "stakeholders",
+    );
+    expect(result).toEqual({
+      kind: "stakeholders",
+      stakeholders: [{ name: "山田", role: "スポンサー", influence: "high", interest: "high" }],
     });
   });
 

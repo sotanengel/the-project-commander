@@ -1,7 +1,21 @@
-import { BulkTaskSchema, type DependencyCreateInput } from "@tpc/shared";
+import {
+  BulkTaskSchema,
+  DateStringSchema,
+  type DependencyCreateInput,
+  type ImportFailure,
+  LevelSchema,
+  resolveDependenciesByName,
+} from "@tpc/shared";
 import { z } from "zod";
 import type { BulkTaskInput } from "../../api/client.js";
 import type { PromptPurpose } from "./prompts.js";
+
+export { resolveDependenciesByName as resolveDependencies };
+export type {
+  DependencyResolution,
+  ImportFailure,
+  ResolvedDependency,
+} from "@tpc/shared";
 
 // ---- エラー ----
 
@@ -46,14 +60,38 @@ const WbsImportSchema = z.object({
 
 const RiskImportItemSchema = z.object({
   title: z.string().min(1),
-  probability: z.enum(["low", "medium", "high"]).optional(),
-  impact: z.enum(["low", "medium", "high"]).optional(),
-  response: z.string().optional(),
+  probability: LevelSchema.optional(),
+  impact: LevelSchema.optional(),
+  response: z.string().min(1, "対応方針は必須です"),
 });
 export type RiskImportItem = z.infer<typeof RiskImportItemSchema>;
 
 const RiskImportSchema = z.object({
   risks: z.array(RiskImportItemSchema),
+});
+
+const MilestoneImportItemSchema = z.object({
+  name: z.string().min(1),
+  dueDate: DateStringSchema,
+  status: z.enum(["pending", "done"]).optional(),
+});
+export type MilestoneImportItem = z.infer<typeof MilestoneImportItemSchema>;
+
+const MilestoneImportSchema = z.object({
+  milestones: z.array(MilestoneImportItemSchema),
+});
+
+const StakeholderImportItemSchema = z.object({
+  name: z.string().min(1),
+  role: z.string().optional(),
+  influence: LevelSchema.optional(),
+  interest: LevelSchema.optional(),
+  note: z.string().optional(),
+});
+export type StakeholderImportItem = z.infer<typeof StakeholderImportItemSchema>;
+
+const StakeholderImportSchema = z.object({
+  stakeholders: z.array(StakeholderImportItemSchema),
 });
 
 const DependencyImportItemSchema = z.object({
@@ -169,7 +207,9 @@ export function extractJson(text: string): unknown {
 export type ParsedImport =
   | { kind: "tasks"; tasks: BulkTaskInput[] }
   | { kind: "risks"; risks: RiskImportItem[] }
-  | { kind: "dependencies"; dependencies: DependencyImportItem[] };
+  | { kind: "dependencies"; dependencies: DependencyImportItem[] }
+  | { kind: "milestones"; milestones: MilestoneImportItem[] }
+  | { kind: "stakeholders"; stakeholders: StakeholderImportItem[] };
 
 function pathOf(issue: z.ZodIssue): string {
   return issue.path.length > 0 ? issue.path.join(".") : "(ルート)";
@@ -202,6 +242,14 @@ export function parseAiResponse(text: string, purpose: PromptPurpose): ParsedImp
     if (purpose === "risk_identify") {
       const data = RiskImportSchema.parse(raw);
       return { kind: "risks", risks: data.risks };
+    }
+    if (purpose === "milestones") {
+      const data = MilestoneImportSchema.parse(raw);
+      return { kind: "milestones", milestones: data.milestones };
+    }
+    if (purpose === "stakeholders") {
+      const data = StakeholderImportSchema.parse(raw);
+      return { kind: "stakeholders", stakeholders: data.stakeholders };
     }
     const data = DependencyImportSchema.parse(raw);
     return { kind: "dependencies", dependencies: data.dependencies };
@@ -236,65 +284,6 @@ export function flattenTasks(tasks: BulkTaskInput[], depth = 0): TaskPreviewRow[
 /** 子孫を含めたタスク総数 */
 export function countTasks(tasks: BulkTaskInput[]): number {
   return flattenTasks(tasks).length;
-}
-
-// ---- 依存の名前解決 ----
-
-export interface ResolvedDependency {
-  label: string;
-  input: DependencyCreateInput;
-}
-
-export interface ImportFailure {
-  label: string;
-  reason: string;
-}
-
-export interface DependencyResolution {
-  resolved: ResolvedDependency[];
-  failures: ImportFailure[];
-}
-
-/**
- * 依存関係のタスク名をタスクIDに解決する。
- * 見つからない名前・同名タスクが複数あって特定できない名前がある依存は
- * 理由付きで failures に入れ、残りの解決は続行する。
- */
-export function resolveDependencies(
-  dependencies: DependencyImportItem[],
-  tasks: { id: string; name: string }[],
-): DependencyResolution {
-  // 同名タスクが複数ある場合は null を入れて「曖昧」を表す
-  const byName = new Map<string, string | null>();
-  for (const task of tasks) {
-    byName.set(task.name, byName.has(task.name) ? null : task.id);
-  }
-  const resolved: ResolvedDependency[] = [];
-  const failures: ImportFailure[] = [];
-  for (const dep of dependencies) {
-    const label = `${dep.predecessorName} → ${dep.successorName}`;
-    const names = [dep.predecessorName, dep.successorName];
-    const missing = names.filter((name) => !byName.has(name));
-    if (missing.length > 0) {
-      failures.push({ label, reason: `タスク名が見つかりません: ${missing.join("、")}` });
-      continue;
-    }
-    const ambiguous = names.filter((name) => byName.get(name) === null);
-    if (ambiguous.length > 0) {
-      failures.push({
-        label,
-        reason: `同名のタスクが複数あるため特定できません: ${ambiguous.join("、")}`,
-      });
-      continue;
-    }
-    const predecessorId = byName.get(dep.predecessorName) as string;
-    const successorId = byName.get(dep.successorName) as string;
-    resolved.push({
-      label,
-      input: { predecessorId, successorId, type: dep.type, lagDays: dep.lagDays },
-    });
-  }
-  return { resolved, failures };
 }
 
 // ---- 1件ずつの取り込み ----
