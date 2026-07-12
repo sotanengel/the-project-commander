@@ -6,6 +6,9 @@ const apiPort = process.env.VITE_API_PORT ?? "3000";
 const apiTarget = `http://localhost:${apiPort}`;
 
 export default defineConfig({
+  build: {
+    target: 'es2022',
+  },
   plugins: [react()],
   server: {
     port: 5173,
