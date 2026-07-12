@@ -21,6 +21,13 @@
     "vitest": "^3.2.6"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@biomejs/biome", "better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "better-sqlite3",
+      "esbuild"
+    ],
+    "overrides": {
+      "esbuild": ">=0.28.1"
+    }
   }
 }
